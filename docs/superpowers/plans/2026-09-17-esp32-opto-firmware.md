@@ -57,6 +57,7 @@
 | `lib/rfc2217-server/` | сервер RFC 2217 с патчем | 5 |
 | `src/port/rfc2217.*` | прозрачный serial | 5 |
 | `src/port/ota_cloud.*` | OTA через сервер Waterius | 6 |
+| `test/test_nartis/` | юнит-тесты протокола: эмулятор счётчика и реальный дамп | 2 |
 | `src/main.cpp` | сборка модулей в `setup` / `loop` | все |
 
 ---
@@ -82,7 +83,7 @@
 
 - [ ] **Шаг 1: Удалить старые файлы**
 
-Старые `dlms`, `nartis`, `web` и `rfc2217` — рукописные реализации, которые по спеке заменяются библиотеками; `net` переписывается в задаче 3. Тесты `test/test_nartis` не удаляются: в задаче 2 они проверяют новый адаптер.
+Старые `dlms`, `nartis`, `web` и `rfc2217` — рукописные реализации, которые по спеке заменяются библиотеками; `net` переписывается в задаче 3. Тесты `test/test_nartis` не удаляются: в задаче 2 они проверяют новый адаптер. До задачи 2 `pio test -e native` не собирается — адаптера нет.
 
 ```bash
 git rm src/settings.h src/core/dlms.h src/core/dlms.cpp src/core/nartis.h src/core/nartis.cpp \
@@ -106,7 +107,8 @@ git rm src/settings.h src/core/dlms.h src/core/dlms.cpp src/core/nartis.h src/co
 ; Результат сборки проверять по коду возврата pio, без grep/tail после него.
 
 [platformio]
-default_envs = esp32-s3
+; native — только для тестов, `pio run` без -e его не собирает
+default_envs = esp32-s3, esp32-c3
 
 [firmware]
 ; уходит в облако полем fw; сервер Waterius сравнивает его с целевой версией OTA
@@ -154,7 +156,7 @@ build_flags =
     -DBOOT_PIN=9
 
 ; Юнит-тесты протокола обмена со счётчиком на компьютере, без платы.
-; Из src собирается только протокол: он не зависит от Arduino.
+; Из src собирается только адаптер: он не зависит от Arduino.
 [env:native]
 platform = native
 framework =
@@ -1018,15 +1020,20 @@ git commit -m "feat: фундамент прошивки — библиотек�
 **Files:**
 - Create: `src/core/nartis.h`, `src/core/nartis.cpp`
 - Modify (заменить целиком): `src/main.cpp`
-- Modify: `test/test_nartis/test_main.cpp` (`readMeter()`), `test/test_nartis/meter_emulator.h` (`abortRequested()`)
+- Modify: `test/test_nartis/meter_emulator.h` (3 правки), `test/test_nartis/test_main.cpp` (4 правки)
+- Test: `test/test_nartis` — `~/.platformio/penv/bin/pio test -e native`
 
 **Interfaces:**
 - Consumes: `core::IOptoPort` (включая `abortRequested()`), `core::MeterData`, `core::ReadResult`, `core::nowMs()`, `core::sleepMs()`; `bus`, `storage::loadSettings`, `app`, `Log` (задача 1).
 - Produces: `core::NartisMeter(IOptoPort&)`: `setAddress(uint8_t)` (0 — перебор 16 → 17), `setPassword(const char*)`, `read(MeterData&, char* error, size_t) -> ReadResult`.
 
-Что важно знать о Gurux (проверено по исходникам форка):
+Что важно знать о Gurux (проверено по исходникам форка и юнит-тестами на дампе):
 - Порядок обмена повторяет `Arduino_IDE/client/client.ino`: `cl_snrmRequest` → `cl_parseUAResponse` → `cl_aarqRequest` → `cl_parseAAREResponse` → `cl_read` + `cl_getData` → `cl_releaseRequest`, `cl_disconnectRequest`. Сегменты — циклом `reply_isMoreData` + `cl_receiverReady`.
-- Неверный пароль `cl_parseAAREResponse` возвращает как `DLMS_ERROR_CODE_REJECTED_PERMAMENT` (опечатка в самой библиотеке).
+- Отказ в ассоциации приходит разными кодами: на отказ по СТО (`a2 03 02 01 01`, диагностика `0d`) Gurux возвращает `DLMS_ERROR_CODE_AUTHENTICATION_FAILURE`, на другие — `DLMS_ERROR_CODE_REJECTED_PERMAMENT`. Поэтому `AuthRejected` ставится по любому ответу на AARQ, кроме молчания, — проверено тестом.
+- Свои умолчания AARQ у Gurux шире, чем у проверенного обмена: conformance и max PDU выставляются вручную, иначе запрос отличается от того, на который счётчик ответил.
+- `cl_releaseRequest` (RLRQ) не отправляется: в проверенном обмене сеанс закрывается одним DISC.
+- Повторы кадров разрешены только после ассоциации: повторный AARQ — ещё одна попытка пароля из пяти, а повторный SNRM затягивает перебор адресов на 8 секунд.
+- Время счётчика Gurux отдаёт без пересчёта по deviation, поэтому разбирается через `gmtime_r`, а не `localtime_r`.
 - Атрибут 2 регистра Gurux копирует как есть (`cosem_setRegister`), scaler из атрибута 3 применяется вручную.
 - Для строк `cl_updateValue` не вызывается: у Gurux там утечки, строка берётся из `reply.dataValue` (так же обходит latonita).
 
@@ -1050,6 +1057,9 @@ class NartisMeter : public IMeter {
     void setPassword(const char* pwd);
 
     ReadResult read(MeterData& out, char* error, size_t errorCap) override;
+
+    // Адрес, на котором счётчик отозвался в последний раз.
+    uint8_t foundAddress() const { return found_; }
 
    private:
     IOptoPort& port_;
@@ -1092,6 +1102,16 @@ class Session {
         cl_init(&settings_, 1, CLIENT_READER, cl_getServerAddress(1, phys, 2),
                 pwd[0] ? DLMS_AUTHENTICATION_LOW : DLMS_AUTHENTICATION_NONE, pwd[0] ? pwd : NULL,
                 DLMS_INTERFACE_TYPE_HDLC);
+        // Набор услуг и размер PDU в AARQ — как в обмене, проверенном на
+        // счётчике (docs/06-nartis-100-exchange.md, conformance 00 7e 1f,
+        // max PDU 1200). Свои умолчания Gurux предлагает шире.
+        settings_.proposedConformance = (DLMS_CONFORMANCE)(
+            DLMS_CONFORMANCE_PRIORITY_MGMT_SUPPORTED | DLMS_CONFORMANCE_ATTRIBUTE_0_SUPPORTED_WITH_GET |
+            DLMS_CONFORMANCE_BLOCK_TRANSFER_WITH_GET_OR_READ | DLMS_CONFORMANCE_BLOCK_TRANSFER_WITH_SET_OR_WRITE |
+            DLMS_CONFORMANCE_BLOCK_TRANSFER_WITH_ACTION | DLMS_CONFORMANCE_MULTIPLE_REFERENCES |
+            DLMS_CONFORMANCE_GET | DLMS_CONFORMANCE_SET | DLMS_CONFORMANCE_SELECTIVE_ACCESS |
+            DLMS_CONFORMANCE_EVENT_NOTIFICATION | DLMS_CONFORMANCE_ACTION);
+        settings_.maxPduSize = 1200;
         BYTE_BUFFER_INIT(&frame_);
         bb_capacity(&frame_, 256);
     }
@@ -1119,18 +1139,27 @@ class Session {
         if (ret == 0) ret = cl_parseAAREResponse(&settings_, &reply.data);
         mes_clear(&msg);
         reply_clear(&reply);
+        // Счётчик ответил на AARQ отказом: пароль неверный либо не принят
+        // механизм аутентификации. Кодов у Gurux несколько (для LLS обычно
+        // DLMS_ERROR_CODE_AUTHENTICATION_FAILURE), поэтому отказом считаем
+        // любой ответ, кроме молчания.
+        refused_ = ret != 0 && !aborted_ && ret != DLMS_ERROR_CODE_RECEIVE_FAILED;
+        if (ret == 0) resend_ = true;  // повторы разрешены только после ассоциации
         return ret;
     }
 
-    // Release и DISC. Ошибки не важны: счётчик сам закроет сеанс по таймауту.
+    // Счётчик отверг ассоциацию: повторять нельзя, 5 попыток — блокировка на сутки.
+    bool refused() const { return refused_; }
+
+    // DISC. Ошибки не важны: счётчик сам закроет сеанс по таймауту.
+    // RLRQ (release) не шлём: проверенный на счётчике обмен закрывается одним
+    // DISC (docs/06-nartis-100-exchange.md), а лишний запрос — лишние 2 секунды
+    // ожидания, если счётчик на него не отвечает.
     void close() {
         message msg;
         gxReplyData reply;
         mes_init(&msg);
         reply_init(&reply);
-        if (cl_releaseRequest(&settings_, &msg) == 0) exchange(&msg, &reply);
-        mes_clear(&msg);
-        reply_clear(&reply);
         if (cl_disconnectRequest(&settings_, &msg) == 0) exchange(&msg, &reply);
         mes_clear(&msg);
         reply_clear(&reply);
@@ -1177,7 +1206,9 @@ class Session {
         do {
             int ret = readFrame();
             if (ret != 0) {
-                if (aborted_ || resend == RESEND_COUNT) return ret;
+                // До ассоциации повторов нет: повторный AARQ — ещё одна попытка
+                // пароля, а повторный SNRM затягивает перебор адресов.
+                if (aborted_ || !resend_ || resend == RESEND_COUNT) return ret;
                 ++resend;
                 bb_empty(&frame_);
                 port_.write(data->data, data->size);
@@ -1223,6 +1254,8 @@ class Session {
     dlmsSettings settings_;
     gxByteBuffer frame_;
     bool aborted_ = false;
+    bool refused_ = false;
+    bool resend_ = false;
 };
 
 // Строки НАРТИС (тип счётчика) приходят в cp1251 — переводим в UTF-8 для веба и облака.
@@ -1295,9 +1328,11 @@ void readClock(Session& s, char* out, size_t cap) {
     reply_init(&reply);
     if (cosem_init(BASE(clk), DLMS_OBJECT_TYPE_CLOCK, "0.0.1.0.0.255") == 0 &&
         s.readAttr(BASE(clk), 2, &reply, true) == 0) {
+        // Gurux отдаёт время счётчика как есть, без пересчёта по deviation,
+        // поэтому и разбирать его надо без часового пояса устройства.
         time_t t = (time_t)clk.time.value;
         struct tm tm;
-        localtime_r(&t, &tm);
+        gmtime_r(&t, &tm);
         strftime(out, cap, "%Y-%m-%d %H:%M:%S", &tm);
     }
     reply_clear(&reply);
@@ -1329,8 +1364,8 @@ ReadResult NartisMeter::read(MeterData& out, char* error, size_t errorCap) {
         Session s(port_, addr, pwd_);
         int ret = s.open();
         if (s.aborted()) return ReadResult::Aborted;
-        if (ret == DLMS_ERROR_CODE_REJECTED_PERMAMENT) {
-            snprintf(error, errorCap, "счётчик отверг пароль (адрес %u)", addr);
+        if (s.refused()) {
+            snprintf(error, errorCap, "счётчик отверг пароль (адрес %u, код %d)", addr, ret);
             return ReadResult::AuthRejected;
         }
         if (ret != 0) {
@@ -1444,18 +1479,145 @@ void loop() {
 Run: `~/.platformio/penv/bin/pio run -e esp32-s3 -e esp32-c3`
 Expected: код возврата 0, оба env `SUCCESS`.
 
-- [ ] **Шаг 5: Юнит-тесты протокола**
+- [ ] **Шаг 5: Тесты под новый адаптер**
 
-Тесты проверяют адаптер через байты оптопорта, поэтому меняется только обвязка:
-- `test/test_nartis/meter_emulator.h`: у `ByteQueue` добавить `bool abortRequested() override { return false; }`.
-- `test/test_nartis/test_main.cpp`, `readMeter()`: вызывать `meter.read(r.data, r.error, sizeof(r.error))`, `r.ok = result == core::ReadResult::Ok`. В `test_wrong_password_is_sent_once` и `test_wrong_password_is_not_retried_on_other_address` добавить проверку, что результат — `ReadResult::AuthRejected` (для этого завести в `Reading` поле с результатом).
+Тесты проверяют адаптер снаружи, через байты оптопорта, поэтому меняется только обвязка. Заглушка реального обмена пересобирает ответ счётчика с номерами кадров под запрос: данные в дампе настоящие, а порядок чтения у прошивки не такой, как у скрипта, и номера не совпадают.
+
+Правка 1 в `test/test_nartis/meter_emulator.h` — найти:
+
+```
+    void flushInput() override { out_.clear(); }
+```
+
+заменить на:
+
+```
+    void flushInput() override { out_.clear(); }
+    bool abortRequested() override { return false; }
+```
+
+Правка 2 в `test/test_nartis/meter_emulator.h` — найти:
+
+```
+// Воспроизводит реальный обмен: на запрос отвечает кадром, который прислал
+// настоящий счётчик на такой же запрос. Кадры без данных (SNRM, DISC) должны
+// совпасть целиком, I-кадры — по данным (LLC + PDU): номера последовательности
+// в прошивке другие, потому что порядок чтения не как в скрипте.
+```
+
+заменить на:
+
+```
+// Воспроизводит реальный обмен: на запрос отвечает данными, которые прислал
+// настоящий счётчик на такой же запрос. Кадры без данных (SNRM, DISC) должны
+// совпасть целиком, I-кадры — по данным (LLC + PDU): номера последовательности
+// в прошивке другие, потому что порядок чтения не как в скрипте. Ответ поэтому
+// собирается заново, с номерами под запрос.
+```
+
+Правка 3 в `test/test_nartis/meter_emulator.h` — найти:
+
+```
+            if (same) {
+                send(hex(e.response));
+                return;
+            }
+```
+
+заменить на:
+
+```
+            if (!same) continue;
+            Frame resp = parseFrame(hex(e.response));
+            if (f.info.empty()) {  // SNRM, DISC — ответ как есть
+                send(hex(e.response));
+            } else {
+                uint8_t ns = (uint8_t)((f.control >> 1) & 7);
+                uint8_t control = (uint8_t)((((ns + 1) & 7) << 5) | 0x10 | (ns << 1));
+                send(serverFrame(f.dst[1] >> 1, control, resp.info, false));
+            }
+            return;
+```
+
+Правка 1 в `test/test_nartis/test_main.cpp` — найти:
+
+```
+struct Reading {
+    bool ok = false;
+    core::MeterData data;
+```
+
+заменить на:
+
+```
+struct Reading {
+    bool ok = false;
+    core::ReadResult result = core::ReadResult::Failed;
+    core::MeterData data;
+```
+
+Правка 2 в `test/test_nartis/test_main.cpp` — найти:
+
+```
+    r.ok = meter.read(r.data);
+    snprintf(r.error, sizeof(r.error), "%s", r.data.error);
+```
+
+заменить на:
+
+```
+    r.result = meter.read(r.data, r.error, sizeof(r.error));
+    r.ok = r.result == core::ReadResult::Ok;
+```
+
+Правка 3 в `test/test_nartis/test_main.cpp` — найти:
+
+```
+    TEST_ASSERT_EQUAL(0, meter.gets);
+    TEST_ASSERT_TRUE(strlen(r.error) > 0);
+```
+
+заменить на:
+
+```
+    TEST_ASSERT_EQUAL(0, meter.gets);
+    TEST_ASSERT_TRUE(r.result == core::ReadResult::AuthRejected);
+    TEST_ASSERT_TRUE(strlen(r.error) > 0);
+```
+
+Правка 4 в `test/test_nartis/test_main.cpp` — найти:
+
+```
+    meter.password = "12345";
+    Reading r = readMeter(meter);
+    TEST_ASSERT_FALSE(r.ok);
+    TEST_ASSERT_EQUAL(1, meter.aarqs);
+}
+
+void test_silent_meter
+```
+
+заменить на:
+
+```
+    meter.password = "12345";
+    Reading r = readMeter(meter);
+    TEST_ASSERT_FALSE(r.ok);
+    TEST_ASSERT_TRUE(r.result == core::ReadResult::AuthRejected);
+    TEST_ASSERT_EQUAL(1, meter.aarqs);
+}
+
+void test_silent_meter
+```
+
+- [ ] **Шаг 6: Прогон тестов**
 
 Run: `~/.platformio/penv/bin/pio test -e native`
-Expected: код возврата 0, все тесты `PASSED`.
+Expected: код возврата 0, `18 test cases: 18 succeeded`. Первый запуск скачивает Gurux и Unity.
 
-Если падает `test_real_dump_requests_are_byte_identical`, значит Gurux шлёт не те байты, что принял настоящий счётчик (другой AARQ, invoke-id, параметры SNRM). Ожидания из дампа не править: либо настроить Gurux так, чтобы запросы совпали, либо заново снять дамп на счётчике с новой прошивкой. Если Gurux не собирается под `native`, чинить `[env:native]`, а не отключать тесты.
+Если падает `test_real_dump_requests_are_byte_identical`, значит Gurux шлёт не те байты, что принял настоящий счётчик. Ожидания из дампа не править: либо настроить Gurux так, чтобы запросы совпали, либо заново снять дамп на счётчике.
 
-- [ ] **Шаг 6: На железе (владелец)**
+- [ ] **Шаг 7: На железе (владелец)**
 
 Головка на оптопорте счётчика, прошить и открыть монитор. Первое чтение — сразу после старта, дальше раз в минуту.
 Expected (перед итогом — обмен кадрами HDLC: SNRM на адрес 16 с управляющим байтом `93`, ответ UA — с `73` и адресами в обратном порядке):
@@ -1472,7 +1634,7 @@ RX 7e a0 .. (AARE)
 ```
 Без головки: только строки `TX 7e a0 08 02 21 41 93 50 b4 7e` (адрес 16) и `TX 7e a0 08 02 23 41 93 e8 01 7e` (адрес 17) без `RX`, затем `Чтение: результат 1 нет связи со счётчиком (адрес 17, код ...)`.
 
-- [ ] **Шаг 7: Коммит**
+- [ ] **Шаг 8: Коммит**
 
 ```bash
 git add src/core/nartis.h src/core/nartis.cpp src/main.cpp test/test_nartis
@@ -4167,7 +4329,7 @@ git commit -m "feat: OTA через /update, ArduinoOTA и сервер Waterius
 ## Задача 7: Сброс кнопкой BOOT и документация
 
 **Files:**
-- Modify: `src/main.cpp` (заменить целиком), `CLAUDE.md` (8 правок), `README.md` (заменить целиком)
+- Modify: `src/main.cpp` (заменить целиком), `CLAUDE.md` (9 правок), `README.md` (заменить целиком)
 
 **Interfaces:**
 - Consumes: `storage::resetAll()` (задача 1), флаг `BOOT_PIN` из `platformio.ini` (задача 1).
@@ -4310,28 +4472,17 @@ Expected: код возврата 0, оба env `SUCCESS`.
 Правка 1 в `CLAUDE.md` — найти:
 
 ````
-установлен.
-
 ```sh
 ~/.platformio/penv/bin/pio run -e esp32-s3            # сборка
 ~/.platformio/penv/bin/pio run -e esp32-c3 -t upload  # прошивка
 ~/.platformio/penv/bin/pio test -e native             # юнит-тесты, без платы
 ~/.platformio/penv/bin/pio device monitor             # лог, 115200
 ```
-
-Юнит-тесты есть только у протокола обмена со счётчиком: `test/test_nartis`
-гоняет `NartisMeter` через байты оптопорта — на эмуляторе счётчика и на
-реальном дампе (`docs/06-nartis-100-exchange.md`). Env `native` собирает из
-`src` только протокол (`build_src_filter`). Тесты не лезут внутрь клиента
-DLMS, поэтому при смене реализации меняется лишь `readMeter()` в тесте.
 ````
 
 заменить на:
 
 ````
-установлен. Каждая задача проверяется сборкой обеих плат и проверкой на
-железе (спека, раздел 12).
-
 ```sh
 ~/.platformio/penv/bin/pio run -e esp32-s3 -e esp32-c3   # сборка обеих плат
 ~/.platformio/penv/bin/pio run -e esp32-s3 -t upload     # прошивка
@@ -4340,15 +4491,23 @@ DLMS, поэтому при смене реализации меняется л�
 ~/.platformio/penv/bin/pio device monitor                # лог, 115200
 python3 tools/fake_cloud.py                              # заглушка облака Waterius
 ```
-
-Юнит-тесты есть только у протокола обмена со счётчиком: `test/test_nartis`
-гоняет `NartisMeter` через байты оптопорта — на эмуляторе счётчика и на
-реальном дампе (`docs/06-nartis-100-exchange.md`). Env `native` собирает из
-`src` только протокол (`build_src_filter`). Тесты не лезут внутрь Gurux,
-поэтому при смене реализации меняется лишь `readMeter()` в тесте.
 ````
 
 Правка 2 в `CLAUDE.md` — найти:
+
+```
+Тесты не лезут внутрь клиента
+DLMS, поэтому при смене реализации меняется лишь `readMeter()` в тесте.
+```
+
+заменить на:
+
+```
+Тесты не лезут внутрь Gurux,
+поэтому при смене реализации меняется лишь `readMeter()` в тесте.
+```
+
+Правка 3 в `CLAUDE.md` — найти:
 
 ```
 src/core/    ядро, без Arduino: dlms (HDLC+COSEM), nartis (адаптер),
@@ -4356,6 +4515,7 @@ src/core/    ядро, без Arduino: dlms (HDLC+COSEM), nartis (адаптер
 src/port/    железо: opto_esp32 (UART1), net (Wi-Fi/HTTP), web (страница),
              rfc2217 (прозрачный serial), settings_nvs, hal_esp32
 src/app.h    общее состояние (настройки, последнее чтение, статус облака)
+tools/       nartis_probe.py — опрос счётчика с компьютера через головку на USB
 docs/        исследование ИК-головки RIXUTECH на CP2102N и её доработки
 ```
 
@@ -4371,11 +4531,13 @@ src/poller.*  автомат опроса счётчика и отправки �
 src/app.h     общее состояние и флаги запросов с веб-страниц
 data/         четыре страницы, app.js, style.css — образ LittleFS
 lib/rfc2217-server/  копия igrr/rfc2217-server с патчем (см. PATCHES.md)
-tools/        fake_cloud.py — заглушка облака для проверки отправки и OTA
+test/test_nartis/    юнит-тесты протокола: эмулятор счётчика и реальный дамп
+tools/        nartis_probe.py — опрос счётчика с компьютера, fake_cloud.py —
+              заглушка облака для проверки отправки и OTA
 docs/         исследование ИК-головки RIXUTECH на CP2102N и её доработки
 ```
 
-Правка 3 в `CLAUDE.md` — найти:
+Правка 4 в `CLAUDE.md` — найти:
 
 ```
 наследует `core::IMeter` рядом с `NartisMeter`.
@@ -4394,7 +4556,7 @@ docs/         исследование ИК-головки RIXUTECH на CP2102N
 нет на странице лога.
 ```
 
-Правка 4 в `CLAUDE.md` — найти:
+Правка 5 в `CLAUDE.md` — найти:
 
 ```
   менять параметры COM-порта (скорость, биты, чётность, стоп-биты). Это
@@ -4409,7 +4571,7 @@ docs/         исследование ИК-головки RIXUTECH на CP2102N
   «Вне рамок»).
 ```
 
-Правка 5 в `CLAUDE.md` — найти:
+Правка 6 в `CLAUDE.md` — найти:
 
 ```
 - **Один оптопорт на двух потребителей.** Его делят периодический опрос
@@ -4428,7 +4590,7 @@ docs/         исследование ИК-головки RIXUTECH на CP2102N
   параметры порта выставляет себе каждый опрос при старте.
 ```
 
-Правка 6 в `CLAUDE.md` — найти:
+Правка 7 в `CLAUDE.md` — найти:
 
 ```
   Z. Порядок попыток: сначала SNRM на 9600, при тишине — режим E.
@@ -4440,7 +4602,7 @@ docs/         исследование ИК-головки RIXUTECH на CP2102N
   Z. Режим E не реализован (вне рамок спеки): прошивка сразу шлёт SNRM на 9600.
 ```
 
-Правка 7 в `CLAUDE.md` — найти:
+Правка 8 в `CLAUDE.md` — найти:
 
 ```
 - **Для времени и версии ПО счётчика полей нет.** `fw` — это версия
@@ -4463,7 +4625,7 @@ docs/         исследование ИК-головки RIXUTECH на CP2102N
   владелец добавит в бэкенд отдельно.
 ```
 
-Правка 8 в `CLAUDE.md` — найти:
+Правка 9 в `CLAUDE.md` — найти:
 
 ```
 - **Три веб-страницы**: статус, настройки (счётчик, порт, облако), Wi-Fi.
