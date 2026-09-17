@@ -307,10 +307,12 @@ ReadResult NartisMeter::read(MeterData& out, char* error, size_t errorCap) {
                 out.tariff[t - 1] = v;
                 out.tariffCount = t;
             }
-            readString(s, "0.0.96.1.0.255", out.serial, sizeof(out.serial));
-            readString(s, "0.0.96.1.1.255", out.model, sizeof(out.model));
-            readString(s, "0.0.96.1.2.255", out.fwVersion, sizeof(out.fwVersion));
-            readClock(s, out.time, sizeof(out.time));
+            if (!s.aborted()) {  // сессию забрала прозрачная — лишние кадры не шлём
+                readString(s, "0.0.96.1.0.255", out.serial, sizeof(out.serial));
+                readString(s, "0.0.96.1.1.255", out.model, sizeof(out.model));
+                readString(s, "0.0.96.1.2.255", out.fwVersion, sizeof(out.fwVersion));
+                readClock(s, out.time, sizeof(out.time));
+            }
         }
         if (s.aborted()) return ReadResult::Aborted;  // порт уже у клиента — DISC не шлём
         s.close();

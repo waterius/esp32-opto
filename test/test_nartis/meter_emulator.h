@@ -162,6 +162,7 @@ class MeterEmulator : public ByteQueue {
     std::string password = "111";  // пароль LLS клиента 32
     size_t maxInfo = 256;          // длиннее — ответ уходит сегментами
     int corruptFrames = 0;         // сколько ближайших ответов испортить (FCS)
+    int abortAfterGets = -1;       // после скольких GET считать порт забранным прозрачной сессией (-1 — никогда)
 
     // Журнал: что прислал клиент
     std::vector<Bytes> frames;   // все кадры от клиента как есть
@@ -192,6 +193,9 @@ class MeterEmulator : public ByteQueue {
 
     void set(uint16_t cls, const char* obis, uint8_t attr, const char* data) { objects_[key(cls, obis, attr)] = hex(data); }
     void remove(uint16_t cls, const char* obis, uint8_t attr) { objects_.erase(key(cls, obis, attr)); }
+
+    // Имитация прозрачной сессии RFC 2217, забравшей порт после abortAfterGets GET-ов.
+    bool abortRequested() override { return abortAfterGets >= 0 && gets >= abortAfterGets; }
 
     // Разобранные I-кадры клиента (запросы DLMS), по порядку
     std::vector<Frame> iFrames() const {

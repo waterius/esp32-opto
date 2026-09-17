@@ -136,6 +136,21 @@ void test_corrupted_fcs_is_not_accepted() {
     TEST_ASSERT_EQUAL(0, meter.aarqs);
 }
 
+// --- Арбитраж шины ----------------------------------------------------------
+
+// Прозрачная сессия RFC 2217 забрала порт посреди опроса (после суммы и
+// первого тарифа): чтение обязано остановиться сразу, без дополнительных
+// кадров на строки и время — иначе они уходят в оптопорт мимо арбитра.
+void test_abort_stops_further_reads() {
+    MeterEmulator meter;
+    meter.abortAfterGets = 4;  // сумма (2 GET) + T1 (2 GET) — дальше порт забран
+    Reading r = readMeter(meter);
+    TEST_ASSERT_TRUE(r.result == core::ReadResult::Aborted);
+    TEST_ASSERT_EQUAL(4, meter.gets);            // ни одного лишнего запроса после прерывания
+    TEST_ASSERT_EQUAL(6, meter.frames.size());   // SNRM + AARQ + 4 GET, без DISC
+    TEST_ASSERT_EQUAL(0, meter.discs);           // порт уже не у нас — DISC не шлём
+}
+
 // --- Адрес и пароль --------------------------------------------------------
 
 void test_address_probe_16_then_17() {
@@ -262,6 +277,7 @@ int main() {
     RUN_TEST(test_sequence_numbers_wrap_modulo_8);
     RUN_TEST(test_segmented_response_is_reassembled);
     RUN_TEST(test_corrupted_fcs_is_not_accepted);
+    RUN_TEST(test_abort_stops_further_reads);
     RUN_TEST(test_address_probe_16_then_17);
     RUN_TEST(test_fixed_address_is_not_probed);
     RUN_TEST(test_password_goes_into_aarq);
