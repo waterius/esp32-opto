@@ -33,13 +33,17 @@ void flushRx() {
 
 }  // namespace
 
-void OptoBus::begin(const core::SerialCfg& cfg) { uart.begin(cfg); }
+void OptoBus::begin(const core::SerialCfg& cfg) {
+    uart.begin(cfg);
+    snapshot_.store(pack(cfg));
+}
 
 void OptoBus::configure(const core::SerialCfg& cfg) {
     flushRx();
     if (!(cfg == uart.current()))
         Log.printf("Оптопорт: %lu %u%c%u\n", (unsigned long)cfg.baud, cfg.bits, cfg.parity, cfg.stop);
     uart.configure(cfg);
+    snapshot_.store(pack(cfg));
 }
 
 size_t OptoBus::write(const uint8_t* data, size_t len) {
@@ -69,6 +73,29 @@ void OptoBus::flushInput() {
 }
 
 const core::SerialCfg& OptoBus::current() const { return uart.current(); }
+
+// Упаковка cfg в одно 32-битное слово — читается/пишется атомарно одной
+// инструкцией, поэтому snapshot() не гонится с configure() из другой задачи.
+// Скорость (до 115200) — биты 0-23, биты данных (5-8, храним как bits-5) —
+// 24-25, чётность (N=0,E=1,O=2) — 26-27, стоп-биты (1→0, 2→1) — бит 28.
+uint32_t OptoBus::pack(const core::SerialCfg& cfg) {
+    uint32_t bits = (cfg.bits >= 5 && cfg.bits <= 8) ? (uint32_t)(cfg.bits - 5) : 0;
+    uint32_t parity = cfg.parity == 'E' ? 1u : (cfg.parity == 'O' ? 2u : 0u);
+    uint32_t stop = cfg.stop == 2 ? 1u : 0u;
+    return (cfg.baud & 0xFFFFFFu) | (bits << 24) | (parity << 26) | (stop << 28);
+}
+
+core::SerialCfg OptoBus::unpack(uint32_t v) {
+    core::SerialCfg cfg;
+    cfg.baud = v & 0xFFFFFFu;
+    cfg.bits = (uint8_t)(((v >> 24) & 0x3u) + 5);
+    uint32_t parity = (v >> 26) & 0x3u;
+    cfg.parity = parity == 1 ? 'E' : (parity == 2 ? 'O' : 'N');
+    cfg.stop = ((v >> 28) & 0x1u) ? 2 : 1;
+    return cfg;
+}
+
+core::SerialCfg OptoBus::snapshot() const { return unpack(snapshot_.load()); }
 
 bool OptoBus::acquireForMeter() {
     if (owner_ != BusOwner::Free || preempt_.load()) return false;

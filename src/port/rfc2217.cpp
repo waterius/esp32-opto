@@ -47,7 +47,7 @@ unsigned onBaudrate(void*, unsigned requested) {
         return requested;
     }
     uint32_t w = wantBaud.load();
-    return w ? w : bus.current().baud;
+    return w ? w : bus.snapshot().baud;
 }
 
 unsigned onDatasize(void*, unsigned requested) {
@@ -56,7 +56,7 @@ unsigned onDatasize(void*, unsigned requested) {
         return requested;
     }
     uint8_t w = wantBits.load();
-    return w ? w : bus.current().bits;
+    return w ? w : bus.snapshot().bits;
 }
 
 // RFC 2217: 1 — нет, 2 — нечётность, 3 — чётность. MARK и SPACE не поддерживаем.
@@ -67,7 +67,7 @@ unsigned onParity(void*, unsigned requested) {
         return requested;
     }
     char c = wantParity.load();
-    if (!c) c = bus.current().parity;
+    if (!c) c = bus.snapshot().parity;
     return c == 'O' ? 2 : (c == 'E' ? 3 : 1);
 }
 
@@ -78,13 +78,17 @@ unsigned onStopsize(void*, unsigned requested) {
         return requested;
     }
     uint8_t w = wantStop.load();
-    return w ? w : bus.current().stop;
+    return w ? w : bus.snapshot().stop;
 }
 
 }  // namespace
 
 void begin(uint16_t port) {
     fromClient = xStreamBufferCreate(FROM_CLIENT_BUFFER, 1);
+    if (!fromClient) {
+        Log.println("RFC 2217: не выделен буфер приёма, сервер не запущен");
+        return;
+    }
     rfc2217_server_config_t cfg = {};
     cfg.on_client_connected = onConnected;
     cfg.on_client_disconnected = onDisconnected;

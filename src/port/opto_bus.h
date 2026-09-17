@@ -20,8 +20,14 @@ class OptoBus : public core::IOptoPort {
     void flushInput() override;
     bool abortRequested() override { return preempt_.load(); }
 
+    // Только из loop() — как и остальные не-атомарные методы выше.
     const core::SerialCfg& current() const;
     BusOwner owner() const { return owner_; }
+
+    // Снимок параметров порта, упакованный в одно атомарное слово (см. .cpp):
+    // безопасен для вызова из чужих задач, пока configure() пишет current()
+    // из loop(). Возвращает распакованную копию, а не ссылку на текущую cfg.
+    core::SerialCfg snapshot() const;
 
     // Опрос счётчика: взять шину, только если она свободна и никто не ждёт.
     bool acquireForMeter();
@@ -38,6 +44,10 @@ class OptoBus : public core::IOptoPort {
    private:
     BusOwner owner_ = BusOwner::Free;
     std::atomic<bool> preempt_{false};
+    std::atomic<uint32_t> snapshot_{0};  // упакованный current(), см. pack()/unpack()
+
+    static uint32_t pack(const core::SerialCfg& cfg);
+    static core::SerialCfg unpack(uint32_t v);
 };
 
 extern OptoBus bus;
