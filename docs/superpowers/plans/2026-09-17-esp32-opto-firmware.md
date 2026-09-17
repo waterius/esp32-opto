@@ -44,7 +44,7 @@
 | `src/port/opto_esp32.*` | UART1 | 1 |
 | `src/port/opto_bus.*` | владелец UART1, арбитр опроса и сессии | 1 |
 | `src/port/storage.*` | NVS: настройки, последнее чтение, `ota_error` | 1 |
-| `src/port/log.*` | лог: USB и кольцевой буфер 8 КБ | 1 |
+| `src/port/log.*` | лог: USB и кольцевой буфер 16 КБ | 1 |
 | `src/app.h` | общее состояние и флаги запросов | 1 |
 | `src/port/hal_esp32.cpp` | `nowMs` / `sleepMs` — не меняется | — |
 | `src/core/nartis.*` | адаптер НАРТИС на Gurux | 2 |
@@ -77,7 +77,7 @@
   - `core::buildCloudPayload(const MeterData&, uint32_t readAt, const Settings&, const DeviceInfo&, char* out, size_t cap) -> size_t`; `core::DeviceInfo {fw, ip, rssi, chipId, otaError}`; `core::parseOta(const char* body, OtaRequest&) -> OtaParse {None, Ok, Error}`; `core::OtaRequest {OtaImage firmware, filesystem}`, `core::OtaImage {present, url[256], md5[33]}`; `enum core::OtaError {OTA_OK, OTA_ERR_PARSE, OTA_ERR_FS, OTA_ERR_FIRMWARE}`.
   - `extern OptoBus bus` — `core::IOptoPort` плюс `begin(const SerialCfg&)`, `current() -> const SerialCfg&`, `owner() -> BusOwner {Free, Meter, Transparent}`, `acquireForMeter() -> bool`, `releaseMeter()`, `beginTransparent()`, `endTransparent()`, `requestPreempt()`.
   - `storage::loadSettings(Settings&)`, `saveSettings(const Settings&)`, `loadLastReading(MeterData&, uint32_t& readAt) -> bool`, `saveLastReading(const MeterData&, uint32_t)`, `loadOtaError() -> uint8_t`, `saveOtaError(uint8_t)`, `resetAll()`.
-  - `extern LogSink Log` (наследник `Print`): `begin(unsigned long baud)` вместо `Serial.begin`, `print/printf/println`, `read(uint32_t from, char* out, size_t cap, size_t& len, bool& skipped) -> uint32_t next`, `bootId() -> uint32_t`, `LogSink::SIZE = 8192`.
+  - `extern LogSink Log` (наследник `Print`): `begin(unsigned long baud)` вместо `Serial.begin`, `print/printf/println`, `read(uint32_t from, char* out, size_t cap, size_t& len, bool& skipped) -> uint32_t next`, `bootId() -> uint32_t`, `LogSink::SIZE = 16384`.
   - `extern AppState app` — поля в `src/app.h`.
 
 - [ ] **Шаг 1: Удалить старые файлы**
@@ -539,8 +539,11 @@ void OptoEsp32::flushInput() {
 
 - [ ] **Шаг 8: Порт — создать `src/port/opto_bus.h` и `.cpp`**
 
+Шина пишет в лог каждый байт оптопорта — и опроса, и прозрачной сессии: `TX` при записи (по 20 байт в строке), `RX` — когда во входном буфере UART не осталось данных, набралось 20 байт или началась запись. UART ядра отдаёт принятое порциями после паузы в 2 символа, поэтому строка `RX` обычно совпадает с кадром. Смена параметров порта тоже попадает в лог.
+
 ```cpp
 // Порт: единственный владелец оптопорта (UART1) — арбитр опроса и прозрачной сессии.
+// Все байты, прошедшие через шину, пишутся в лог строками TX/RX в hex.
 // Все методы, кроме requestPreempt(), вызываются только из loop().
 #pragma once
 #include <atomic>
@@ -587,20 +590,74 @@ extern OptoBus bus;
 ```cpp
 #include "opto_bus.h"
 
+#include "log.h"
 #include "opto_esp32.h"
 
 OptoBus bus;
 
 namespace {
+
 OptoEsp32 uart;
+
+// Байты оптопорта в лог: строка на направление, не длиннее LINE байт.
+// Принятые копятся, пока во входном буфере UART есть данные, — обычно строка = кадр.
+const size_t LINE = 20;
+uint8_t rxPending[LINE];
+size_t rxCount = 0;
+
+void logBytes(const char* dir, const uint8_t* data, size_t len) {
+    char line[3 + LINE * 3 + 1];
+    for (size_t off = 0; off < len; off += LINE) {
+        size_t n = len - off < LINE ? len - off : LINE;
+        int k = snprintf(line, sizeof(line), "%s", dir);
+        for (size_t i = 0; i < n; ++i) k += snprintf(line + k, sizeof(line) - k, " %02x", data[off + i]);
+        Log.println(line);
+    }
 }
 
+void flushRx() {
+    if (!rxCount) return;
+    logBytes("RX", rxPending, rxCount);
+    rxCount = 0;
+}
+
+}  // namespace
+
 void OptoBus::begin(const core::SerialCfg& cfg) { uart.begin(cfg); }
-void OptoBus::configure(const core::SerialCfg& cfg) { uart.configure(cfg); }
-size_t OptoBus::write(const uint8_t* data, size_t len) { return uart.write(data, len); }
-int OptoBus::read() { return uart.read(); }
-int OptoBus::available() { return uart.available(); }
-void OptoBus::flushInput() { uart.flushInput(); }
+
+void OptoBus::configure(const core::SerialCfg& cfg) {
+    flushRx();
+    if (!(cfg == uart.current()))
+        Log.printf("Оптопорт: %lu %u%c%u\n", (unsigned long)cfg.baud, cfg.bits, cfg.parity, cfg.stop);
+    uart.configure(cfg);
+}
+
+size_t OptoBus::write(const uint8_t* data, size_t len) {
+    flushRx();
+    logBytes("TX", data, len);
+    return uart.write(data, len);
+}
+
+int OptoBus::read() {
+    int c = uart.read();
+    if (c >= 0) {
+        rxPending[rxCount++] = (uint8_t)c;
+        if (rxCount == LINE) flushRx();
+    }
+    return c;
+}
+
+int OptoBus::available() {
+    int n = uart.available();
+    if (n <= 0) flushRx();  // входной буфер пуст — принятая порция закончилась
+    return n;
+}
+
+void OptoBus::flushInput() {
+    flushRx();
+    uart.flushInput();
+}
+
 const core::SerialCfg& OptoBus::current() const { return uart.current(); }
 
 bool OptoBus::acquireForMeter() {
@@ -610,15 +667,18 @@ bool OptoBus::acquireForMeter() {
 }
 
 void OptoBus::releaseMeter() {
+    flushRx();
     if (owner_ == BusOwner::Meter) owner_ = BusOwner::Free;
 }
 
 void OptoBus::beginTransparent() {
+    flushRx();
     owner_ = BusOwner::Transparent;
     uart.flushInput();
 }
 
 void OptoBus::endTransparent() {
+    flushRx();
     owner_ = BusOwner::Free;
     preempt_.store(false);
 }
@@ -743,7 +803,7 @@ void resetAll() {
 
 - [ ] **Шаг 10: Порт — создать `src/port/log.h` и `.cpp`**
 
-Кольцевой буфер хранит последние 8 КБ вывода; страница лога (задача 3) забирает из него текст по сквозной позиции. Мьютекс нужен, потому что в лог пишут и `loop()`, и колбэки RFC 2217, а читает веб-хендлер. Буфер опустошается только перезагрузкой.
+Кольцевой буфер хранит последние 16 КБ вывода (один опрос счётчика в hex — около 4 КБ); страница лога (задача 3) забирает из него текст по сквозной позиции. Мьютекс нужен, потому что в лог пишут и `loop()`, и колбэки RFC 2217, а читает веб-хендлер. Буфер опустошается только перезагрузкой.
 
 ```cpp
 // Порт: лог прошивки. Пишет в USB (Serial) и в кольцевой буфер, который
@@ -753,7 +813,7 @@ void resetAll() {
 
 class LogSink : public Print {
    public:
-    static constexpr size_t SIZE = 8192;
+    static constexpr size_t SIZE = 16384;
 
     // Вместо Serial.begin(): до вызова лог не защищён мьютексом.
     void begin(unsigned long baud);
@@ -1373,14 +1433,19 @@ Expected: код возврата 0, оба env `SUCCESS`.
 - [ ] **Шаг 5: На железе (владелец)**
 
 Головка на оптопорте счётчика, прошить и открыть монитор. Первое чтение — сразу после старта, дальше раз в минуту.
-Expected:
+Expected (перед итогом — обмен кадрами HDLC: SNRM на адрес 16 с управляющим байтом `93`, ответ UA — с `73` и адресами в обратном порядке):
 ```
+TX 7e a0 08 02 21 41 93 50 b4 7e
+RX 7e a0 .. 41 02 21 73 .. 7e
+TX 7e a0 .. (AARQ с паролем)
+RX 7e a0 .. (AARE)
+...
 Чтение: результат 0
   всего 12345.678 кВт·ч, sn 012345678901, модель НАРТИС-100..., ПО ..., время 2026-09-17 12:00:00
   T1 ... кВт·ч
   T2 ... кВт·ч
 ```
-Без головки: `Чтение: результат 1 нет связи со счётчиком (адрес 17, код ...)` — после попыток на адресах 16 и 17.
+Без головки: только строки `TX 7e a0 08 02 21 41 93 50 b4 7e` (адрес 16) и `TX 7e a0 08 02 23 41 93 e8 01 7e` (адрес 17) без `RX`, затем `Чтение: результат 1 нет связи со счётчиком (адрес 17, код ...)`.
 
 - [ ] **Шаг 6: Коммит**
 
@@ -2252,7 +2317,7 @@ function logAppend(text) {
     <p id="link-lost" class="form-error hd">Нет связи с устройством</p>
 
     <h2>Лог</h2>
-    <p class="text">Сообщения прошивки в реальном времени. Устройство хранит последние 8 КБ — примерно 100 строк.</p>
+    <p class="text">Сообщения прошивки и байты оптопорта (TX — в счётчик, RX — от счётчика) в реальном времени. Устройство хранит последние 16 КБ — примерно 250 строк.</p>
     <div class="chk">
         <input type="checkbox" id="log-follow" checked>
         <label for="log-follow">Автопрокрутка</label>
@@ -4369,7 +4434,7 @@ docs/         исследование ИК-головки RIXUTECH на CP2102N
 
 ```
 - **Четыре веб-страницы**: статус, настройки (счётчик, порт, облако), Wi-Fi,
-  лог в реальном времени (кольцевой буфер 8 КБ).
+  лог в реальном времени с байтами оптопорта (кольцевой буфер 16 КБ).
 ```
 
 - [ ] **Шаг 4: `README.md` (заменить целиком)**
