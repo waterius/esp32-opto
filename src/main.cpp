@@ -4,7 +4,7 @@
 #include <Arduino.h>
 
 #include "app.h"
-#include "core/nartis.h"
+#include "poller.h"
 #include "port/log.h"
 #include "port/net.h"
 #include "port/opto_bus.h"
@@ -16,36 +16,23 @@ AppState app;
 
 namespace {
 
-// Временная проверка адаптера: чтение раз в минуту в лог. В задаче 4 её заменит poller.
-core::NartisMeter testMeter(bus);
-const uint32_t TEST_READ_EVERY_MS = 60UL * 1000;
-uint32_t testReadAt = 0;
-bool testStopped = false;
+// Настройки со страницы /settings. В NVS пишет только loop().
+void applyPendingSettings() {
+    if (!app.settingsPending.exchange(false)) return;
+    core::Settings next = app.pendingSettings;
+    // Сеть меняется только со страницы /wifi — не затираем её копией из формы
+    memcpy(next.ssid, app.sett.ssid, sizeof(next.ssid));
+    memcpy(next.pass, app.sett.pass, sizeof(next.pass));
+    memcpy(next.bssid, app.sett.bssid, sizeof(next.bssid));
+    next.channel = app.sett.channel;
 
-void testRead() {
-    if (testStopped || (testReadAt && millis() - testReadAt < TEST_READ_EVERY_MS)) return;
-    testReadAt = millis() | 1;
-    if (!bus.acquireForMeter()) return;
-
-    testMeter.setAddress(app.sett.meterAddr);
-    testMeter.setPassword(app.sett.meterPwd);
-    bus.configure(app.sett.serial);
-    core::MeterData data;
-    char error[64];
-    core::ReadResult result = testMeter.read(data, error, sizeof(error));
-    bus.releaseMeter();
-
-    Log.printf("Чтение: результат %d %s\n", (int)result, error);
-    if (result == core::ReadResult::AuthRejected) {
-        // Повторять нельзя: 5 неверных паролей — блокировка счётчика на сутки
-        testStopped = true;
-        Log.println("Опрос остановлен до перезагрузки");
-        return;
-    }
-    if (result != core::ReadResult::Ok) return;
-    Log.printf("  всего %.3f кВт·ч, sn %s, модель %s, ПО %s, время %s\n", data.total, data.serial,
-                  data.model, data.fwVersion, data.time);
-    for (uint8_t i = 0; i < data.tariffCount; ++i) Log.printf("  T%u %.3f кВт·ч\n", i + 1, data.tariff[i]);
+    bool meterTurnedOn = next.meterEnabled && !app.sett.meterEnabled;
+    bool reboot = next.rfcEnabled != app.sett.rfcEnabled || next.rfcPort != app.sett.rfcPort;
+    app.sett = next;
+    storage::saveSettings(app.sett);
+    Log.println("Настройки сохранены");
+    if (meterTurnedOn) poller::onMeterEnabled();
+    if (reboot) app.rebootNow.store(true);  // сервер RFC 2217 на ходу не перезапускается
 }
 
 // Канал и BSSID роутера после подключения — для быстрого коннекта (как в waterius).
@@ -73,6 +60,7 @@ void setup() {
     bus.begin(app.sett.serial);
     net::begin(app.sett);
     web::begin();
+    poller::begin();
 }
 
 void loop() {
@@ -80,6 +68,11 @@ void loop() {
     saveFastConnect();
     wifi_portal::loop();
     web::loop();
-    testRead();
+    applyPendingSettings();
+    poller::loop();
+    if (app.rebootNow.load()) {
+        delay(300);
+        ESP.restart();
+    }
     delay(2);
 }

@@ -89,6 +89,87 @@ function fmtUptime(s) {
     return (d ? d + ' д ' : '') + h + ' ч ' + m + ' мин';
 }
 
+/* ---------- Статус ---------- */
+
+function statusPage() {
+    loadStatus();
+    setInterval(loadStatus, 3000);
+}
+
+function loadStatus() {
+    ajax('/api/status', {}, s => {
+        let state = 'ок';
+        if (s.meter_reading) state = 'идёт чтение…';
+        else if (!s.meter_enabled) state = 'опрос выключен' + (s.meter_error ? ': ' + s.meter_error : '');
+        else if (s.transparent) state = 'порт занят прозрачной сессией';
+        else if (s.meter_error) state = s.meter_error;
+        setText('meter-state', state);
+
+        setText('serial', s.serial || '—');
+        setText('model', s.model || '—');
+        setText('meter-fw', s.meter_fw || '—');
+        setText('meter-time', s.meter_time || '—');
+        setText('read-at', s.has_reading ? fmtTime(s.read_at) : 'чтений не было');
+        setText('total', s.has_reading ? fmtKwh(s.total) : '—');
+        const rows = $('tariffs');
+        rows.innerHTML = '';
+        s.tariffs.forEach((v, i) => {
+            const tr = rows.insertRow();
+            tr.insertCell().textContent = 'T' + (i + 1) + ', кВт·ч';
+            tr.insertCell().textContent = fmtKwh(v);
+        });
+
+        let cloud = 'не отправляли';
+        if (s.cloud_error) cloud = s.cloud_error + (s.cloud_code ? ' (HTTP ' + s.cloud_code + ')' : '');
+        else if (s.cloud_code) cloud = 'HTTP ' + s.cloud_code + ', ' + fmtTime(s.cloud_at);
+        setText('cloud', cloud);
+        setText('cloud-next', Math.ceil(s.cloud_next_s / 60) + ' мин');
+
+        setText('fw', s.fw);
+        setText('ip', s.ip || '—');
+        setText('rssi', s.rssi ? s.rssi + ' дБм' : '—');
+        setText('uptime', fmtUptime(s.uptime_s));
+        setText('heap', Math.round(s.heap / 1024) + ' КБ');
+        setText('wifi-mode', s.wifi_mode);
+        $('btn-read').disabled = !s.meter_enabled;
+    });
+}
+
+function action(url, btn) {
+    btn.disabled = true;
+    post(url, () => {
+        btn.disabled = false;
+        loadStatus();
+    });
+}
+
+function reboot(btn) {
+    if (!confirm('Перезагрузить устройство?')) return;
+    btn.disabled = true;
+    post('/api/reboot', () => {});
+}
+
+/* ---------- Настройки ---------- */
+
+function settingsPage() {
+    ajax('/api/settings', {}, s => {
+        const form = $('settings');
+        for (const k in s) {
+            const inp = form.elements[k];
+            if (!inp) continue;
+            if (inp.type == 'checkbox') inp.checked = !!s[k];
+            else inp.value = s[k];
+        }
+    });
+}
+
+function saveSettings(event, form) {
+    $('saved').classList.add('hd');
+    formSubmit(event, form, '/api/settings', res => {
+        showOk('saved', res.reboot ? 'Сохранено, устройство перезагружается…' : 'Сохранено');
+    });
+}
+
 /* ---------- Wi-Fi ---------- */
 
 const WIFI_STATUS = {
