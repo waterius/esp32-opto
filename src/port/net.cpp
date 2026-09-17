@@ -100,6 +100,7 @@ void loop(const core::Settings& s) {
     if (wasConnected) {
         wasConnected = false;
         lostSinceMs = now;
+        status_ = Status::Failed;  // иначе /api/wifi_status ещё до AP_AFTER_MS отвечает «подключено»
         Log.println("Wi-Fi: связь с роутером потеряна");
     }
     if (status_ == Status::Connecting && now - connectStartMs >= CONNECT_TIMEOUT_MS) status_ = Status::Failed;
