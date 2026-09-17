@@ -122,6 +122,14 @@ class Session {
     }
 
     int sendAndReceive(gxByteBuffer* data, gxReplyData* reply) {
+        // Проверка до передачи, а не только в readFrame(): иначе прерывание,
+        // подошедшее между вызовами (например, в середине группы readString/
+        // readClock), не остановит ни один следующий кадр — write() у порта
+        // ничего не знает про preempt_.
+        if (port_.abortRequested()) {
+            aborted_ = true;
+            return DLMS_ERROR_CODE_RECEIVE_FAILED;
+        }
         reply->complete = 0;
         bb_empty(&frame_);
         port_.flushInput();

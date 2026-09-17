@@ -151,6 +151,22 @@ void test_abort_stops_further_reads() {
     TEST_ASSERT_EQUAL(0, meter.discs);           // порт уже не у нас — DISC не шлём
 }
 
+// Прерывание пришло не до группы readString/readClock, а внутри неё — во
+// время чтения серийного номера (первый вызов группы). Оставшиеся три вызова
+// (модель, версия ПО, время) не должны отправить ни кадра: их останавливает
+// проверка в Session::sendAndReceive, а не групповой if (!s.aborted()), у
+// которого нет шанса сработать между вызовами внутри уже открытого блока.
+void test_abort_inside_group_stops_remaining_calls() {
+    MeterEmulator meter;
+    meter.abortAfterGets = 11;  // сумма + T1..T4 (10 GET) + серийный номер (11-й)
+    Reading r = readMeter(meter);
+    TEST_ASSERT_TRUE(r.result == core::ReadResult::Aborted);
+    TEST_ASSERT_EQUAL(11, meter.gets);           // модель/ПО/время запросов не отправляли
+    TEST_ASSERT_EQUAL(13, meter.frames.size());  // SNRM+AARQ+10 GET(энергия)+1 GET(серийный)
+    TEST_ASSERT_EQUAL(0, meter.discs);
+    TEST_ASSERT_EQUAL_STRING("", r.data.serial);  // ответ был готов, но принят не был
+}
+
 // --- Адрес и пароль --------------------------------------------------------
 
 void test_address_probe_16_then_17() {
@@ -278,6 +294,7 @@ int main() {
     RUN_TEST(test_segmented_response_is_reassembled);
     RUN_TEST(test_corrupted_fcs_is_not_accepted);
     RUN_TEST(test_abort_stops_further_reads);
+    RUN_TEST(test_abort_inside_group_stops_remaining_calls);
     RUN_TEST(test_address_probe_16_then_17);
     RUN_TEST(test_fixed_address_is_not_probed);
     RUN_TEST(test_password_goes_into_aarq);
