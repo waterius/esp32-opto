@@ -6,8 +6,11 @@
 #include "app.h"
 #include "core/nartis.h"
 #include "port/log.h"
+#include "port/net.h"
 #include "port/opto_bus.h"
 #include "port/storage.h"
+#include "port/web.h"
+#include "port/wifi_portal.h"
 
 AppState app;
 
@@ -45,6 +48,17 @@ void testRead() {
     for (uint8_t i = 0; i < data.tariffCount; ++i) Log.printf("  T%u %.3f кВт·ч\n", i + 1, data.tariff[i]);
 }
 
+// Канал и BSSID роутера после подключения — для быстрого коннекта (как в waterius).
+void saveFastConnect() {
+    uint8_t channel = 0;
+    uint8_t bssid[6];
+    if (!net::takeFastConnect(channel, bssid)) return;
+    if (channel == app.sett.channel && memcmp(bssid, app.sett.bssid, sizeof(bssid)) == 0) return;
+    app.sett.channel = channel;
+    memcpy(app.sett.bssid, bssid, sizeof(bssid));
+    storage::saveSettings(app.sett);
+}
+
 }  // namespace
 
 void setup() {
@@ -57,9 +71,15 @@ void setup() {
     app.otaError = storage::loadOtaError();
 
     bus.begin(app.sett.serial);
+    net::begin(app.sett);
+    web::begin();
 }
 
 void loop() {
+    net::loop(app.sett);
+    saveFastConnect();
+    wifi_portal::loop();
+    web::loop();
     testRead();
-    delay(100);
+    delay(2);
 }
