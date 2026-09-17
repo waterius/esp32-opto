@@ -10,6 +10,7 @@
 #include "../poller.h"
 #include "log.h"
 #include "net.h"
+#include "rfc2217.h"
 #include "wifi_portal.h"
 
 namespace web {
@@ -39,6 +40,7 @@ void getStatus(AsyncWebServerRequest* request) {
     doc["meter_enabled"] = app.sett.meterEnabled;
     doc["meter_reading"] = app.meterReading.load();
     doc["meter_error"] = app.meterError;
+    doc["transparent"] = rfc2217::active();
 
     doc["has_reading"] = app.hasReading;
     doc["read_at"] = app.lastReadAt;

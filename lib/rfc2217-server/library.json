@@ -1,0 +1,8 @@
+{
+  "name": "rfc2217-server",
+  "version": "0.4.0",
+  "license": "Apache-2.0",
+  "frameworks": "*",
+  "platforms": "espressif32",
+  "build": { "srcDir": "src", "includeDir": "include" }
+}

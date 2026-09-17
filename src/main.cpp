@@ -8,6 +8,7 @@
 #include "port/log.h"
 #include "port/net.h"
 #include "port/opto_bus.h"
+#include "port/rfc2217.h"
 #include "port/storage.h"
 #include "port/web.h"
 #include "port/wifi_portal.h"
@@ -60,6 +61,7 @@ void setup() {
     bus.begin(app.sett.serial);
     net::begin(app.sett);
     web::begin();
+    if (app.sett.rfcEnabled) rfc2217::begin(app.sett.rfcPort);
     poller::begin();
 }
 
@@ -68,6 +70,7 @@ void loop() {
     saveFastConnect();
     wifi_portal::loop();
     web::loop();
+    rfc2217::loop();
     applyPendingSettings();
     poller::loop();
     if (app.rebootNow.load()) {
