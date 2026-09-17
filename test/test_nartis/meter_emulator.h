@@ -144,6 +144,7 @@ class ByteQueue : public core::IOptoPort {
     }
     int available() override { return (int)out_.size(); }
     void flushInput() override { out_.clear(); }
+    bool abortRequested() override { return false; }
 
    protected:
     void send(const Bytes& b) { out_.insert(out_.end(), b.begin(), b.end()); }
@@ -315,10 +316,11 @@ class MeterEmulator : public ByteQueue {
     uint8_t nr_ = 0;
 };
 
-// Воспроизводит реальный обмен: на запрос отвечает кадром, который прислал
+// Воспроизводит реальный обмен: на запрос отвечает данными, которые прислал
 // настоящий счётчик на такой же запрос. Кадры без данных (SNRM, DISC) должны
 // совпасть целиком, I-кадры — по данным (LLC + PDU): номера последовательности
-// в прошивке другие, потому что порядок чтения не как в скрипте.
+// в прошивке другие, потому что порядок чтения не как в скрипте. Ответ поэтому
+// собирается заново, с номерами под запрос.
 class RealExchangePort : public ByteQueue {
    public:
     std::vector<std::string> unmatched;  // запросы, которых нет в дампе
@@ -334,10 +336,16 @@ class RealExchangePort : public ByteQueue {
         for (const Exchange& e : REAL_EXCHANGE) {
             Bytes req = hex(e.request);
             bool same = f.info.empty() ? req == raw : (f.ok && parseFrame(req).info == f.info);
-            if (same) {
+            if (!same) continue;
+            Frame resp = parseFrame(hex(e.response));
+            if (f.info.empty()) {  // SNRM, DISC — ответ как есть
                 send(hex(e.response));
-                return;
+            } else {
+                uint8_t ns = (uint8_t)((f.control >> 1) & 7);
+                uint8_t control = (uint8_t)((((ns + 1) & 7) << 5) | 0x10 | (ns << 1));
+                send(serverFrame(f.dst[1] >> 1, control, resp.info, false));
             }
+            return;
         }
         unmatched.push_back(toHex(raw));
     }

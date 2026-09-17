@@ -22,6 +22,7 @@ void sleepMs(uint32_t ms) { fakeMs += ms; }
 // Результат одного опроса. Единственное место, где тесты вызывают адаптер.
 struct Reading {
     bool ok = false;
+    core::ReadResult result = core::ReadResult::Failed;
     core::MeterData data;
     char error[64] = {0};
     uint8_t addr = 0;
@@ -32,8 +33,8 @@ static Reading readMeter(core::IOptoPort& port, uint8_t addr = 0, const char* pw
     meter.setAddress(addr);
     meter.setPassword(pwd);
     Reading r;
-    r.ok = meter.read(r.data);
-    snprintf(r.error, sizeof(r.error), "%s", r.data.error);
+    r.result = meter.read(r.data, r.error, sizeof(r.error));
+    r.ok = r.result == core::ReadResult::Ok;
     r.addr = meter.foundAddress();
     return r;
 }
@@ -173,6 +174,7 @@ void test_wrong_password_is_sent_once() {
     TEST_ASSERT_FALSE(r.ok);
     TEST_ASSERT_EQUAL(1, meter.aarqs);
     TEST_ASSERT_EQUAL(0, meter.gets);
+    TEST_ASSERT_TRUE(r.result == core::ReadResult::AuthRejected);
     TEST_ASSERT_TRUE(strlen(r.error) > 0);
 }
 
@@ -184,6 +186,7 @@ void test_wrong_password_is_not_retried_on_other_address() {
     meter.password = "12345";
     Reading r = readMeter(meter);
     TEST_ASSERT_FALSE(r.ok);
+    TEST_ASSERT_TRUE(r.result == core::ReadResult::AuthRejected);
     TEST_ASSERT_EQUAL(1, meter.aarqs);
 }
 
