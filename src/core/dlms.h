@@ -22,6 +22,9 @@ class DlmsClient {
              size_t outCap, size_t& outLen);
 
     const char* lastError() const { return err_; }
+    // Счётчик отверг AARQ (обычно неверный пароль). Повторять нельзя:
+    // после 5 неверных паролей интерфейсы блокируются на сутки.
+    bool rejected() const { return rejected_; }
 
     // Разбор A-XDR
     static bool parseNumber(const uint8_t* d, size_t len, double& v);
@@ -42,6 +45,7 @@ class DlmsClient {
     uint8_t ss_ = 0;                 // наш счётчик отправки
     uint8_t rs_ = 0;                 // счётчик принятых кадров
     bool connected_ = false;
+    bool rejected_ = false;
     char err_[48] = {0};
 };
 

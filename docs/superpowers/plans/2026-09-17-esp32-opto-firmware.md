@@ -19,7 +19,7 @@
 - `src/core/` не включает заголовки Arduino и ESP-IDF; C-библиотека Gurux и ArduinoJson допустимы.
 - Веб-хендлеры и колбэки RFC 2217 только читают `app` и ставят атомарные флаги. UART, NVS, TLS и переключения Wi-Fi — только из `loop()`.
 - Пароль счётчика никогда не перебирается: `ReadResult::AuthRejected` выключает опрос (`meterEnabled = false`). После 5 неверных паролей счётчик блокирует интерфейсы на сутки.
-- Юнит-тестов нет (спека, раздел 12). Каждая задача проверяется сборкой обеих плат командой `~/.platformio/penv/bin/pio run -e esp32-s3 -e esp32-c3`: код возврата 0, оба env `SUCCESS`. **После `pio` в конвейере не ставить `grep`/`tail`** — код возврата будет от них. Шаги «на железе» выполняет владелец устройства.
+- Юнит-тесты — только у протокола обмена со счётчиком (спека, раздел 12): `~/.platformio/penv/bin/pio test -e native`, папка `test/test_nartis`. В задаче 1 они не собираются (старый адаптер удалён), с задачи 2 обязательны. Каждая задача проверяется сборкой обеих плат командой `~/.platformio/penv/bin/pio run -e esp32-s3 -e esp32-c3`: код возврата 0, оба env `SUCCESS`. **После `pio` в конвейере не ставить `grep`/`tail`** — код возврата будет от них. Шаги «на железе» выполняет владелец устройства.
 - Комментарии, логи, интерфейс и сообщения коммитов — на русском; коммиты — conventional commits.
 - Весь вывод — через `Log` из `src/port/log.h` (`Log.printf`, `Log.println`), не через `Serial`: иначе сообщение не попадёт на страницу лога. `Log` можно звать из любой задачи. Каждая строка лога начинается с `[секунды.мс] `; в ожидаемом выводе задач 2–7 эта метка опущена.
 - Код во всех задачах уже собран по стадиям при подготовке плана (обе платы, код возврата 0): копировать как есть.
@@ -82,7 +82,7 @@
 
 - [ ] **Шаг 1: Удалить старые файлы**
 
-Старые `dlms`, `nartis`, `web` и `rfc2217` — рукописные реализации, которые по спеке заменяются библиотеками; `net` переписывается в задаче 3.
+Старые `dlms`, `nartis`, `web` и `rfc2217` — рукописные реализации, которые по спеке заменяются библиотеками; `net` переписывается в задаче 3. Тесты `test/test_nartis` не удаляются: в задаче 2 они проверяют новый адаптер.
 
 ```bash
 git rm src/settings.h src/core/dlms.h src/core/dlms.cpp src/core/nartis.h src/core/nartis.cpp \
@@ -101,6 +101,7 @@ git rm src/settings.h src/core/dlms.h src/core/dlms.cpp src/core/nartis.h src/co
 ; Прошивка: ~/.platformio/penv/bin/pio run -e esp32-s3 -t upload
 ; Образ ФС: ~/.platformio/penv/bin/pio run -e esp32-s3 -t uploadfs
 ; Монитор:  ~/.platformio/penv/bin/pio device monitor
+; Тесты:    ~/.platformio/penv/bin/pio test -e native   (с задачи 2)
 ;
 ; Результат сборки проверять по коду возврата pio, без grep/tail после него.
 
@@ -151,6 +152,18 @@ build_flags =
     -DOPTO_RX_PIN=4
     -DOPTO_TX_PIN=5
     -DBOOT_PIN=9
+
+; Юнит-тесты протокола обмена со счётчиком на компьютере, без платы.
+; Из src собирается только протокол: он не зависит от Arduino.
+[env:native]
+platform = native
+framework =
+lib_deps =
+    https://github.com/latonita/GuruxDLMS_c.git#a8c1b92564733d1921d77f17e5e1d8d4bf73f2a7
+build_flags = -std=gnu++17 -Wall -DUNITY_INCLUDE_DOUBLE
+test_framework = unity
+test_build_src = yes
+build_src_filter = -<*> +<core/nartis.cpp>
 ```
 
 - [ ] **Шаг 3: Ядро — `src/core/opto_port.h` (заменить целиком)**
@@ -1005,6 +1018,7 @@ git commit -m "feat: фундамент прошивки — библиотек�
 **Files:**
 - Create: `src/core/nartis.h`, `src/core/nartis.cpp`
 - Modify (заменить целиком): `src/main.cpp`
+- Modify: `test/test_nartis/test_main.cpp` (`readMeter()`), `test/test_nartis/meter_emulator.h` (`abortRequested()`)
 
 **Interfaces:**
 - Consumes: `core::IOptoPort` (включая `abortRequested()`), `core::MeterData`, `core::ReadResult`, `core::nowMs()`, `core::sleepMs()`; `bus`, `storage::loadSettings`, `app`, `Log` (задача 1).
@@ -1430,7 +1444,18 @@ void loop() {
 Run: `~/.platformio/penv/bin/pio run -e esp32-s3 -e esp32-c3`
 Expected: код возврата 0, оба env `SUCCESS`.
 
-- [ ] **Шаг 5: На железе (владелец)**
+- [ ] **Шаг 5: Юнит-тесты протокола**
+
+Тесты проверяют адаптер через байты оптопорта, поэтому меняется только обвязка:
+- `test/test_nartis/meter_emulator.h`: у `ByteQueue` добавить `bool abortRequested() override { return false; }`.
+- `test/test_nartis/test_main.cpp`, `readMeter()`: вызывать `meter.read(r.data, r.error, sizeof(r.error))`, `r.ok = result == core::ReadResult::Ok`. В `test_wrong_password_is_sent_once` и `test_wrong_password_is_not_retried_on_other_address` добавить проверку, что результат — `ReadResult::AuthRejected` (для этого завести в `Reading` поле с результатом).
+
+Run: `~/.platformio/penv/bin/pio test -e native`
+Expected: код возврата 0, все тесты `PASSED`.
+
+Если падает `test_real_dump_requests_are_byte_identical`, значит Gurux шлёт не те байты, что принял настоящий счётчик (другой AARQ, invoke-id, параметры SNRM). Ожидания из дампа не править: либо настроить Gurux так, чтобы запросы совпали, либо заново снять дамп на счётчике с новой прошивкой. Если Gurux не собирается под `native`, чинить `[env:native]`, а не отключать тесты.
+
+- [ ] **Шаг 6: На железе (владелец)**
 
 Головка на оптопорте счётчика, прошить и открыть монитор. Первое чтение — сразу после старта, дальше раз в минуту.
 Expected (перед итогом — обмен кадрами HDLC: SNRM на адрес 16 с управляющим байтом `93`, ответ UA — с `73` и адресами в обратном порядке):
@@ -1447,10 +1472,10 @@ RX 7e a0 .. (AARE)
 ```
 Без головки: только строки `TX 7e a0 08 02 21 41 93 50 b4 7e` (адрес 16) и `TX 7e a0 08 02 23 41 93 e8 01 7e` (адрес 17) без `RX`, затем `Чтение: результат 1 нет связи со счётчиком (адрес 17, код ...)`.
 
-- [ ] **Шаг 6: Коммит**
+- [ ] **Шаг 7: Коммит**
 
 ```bash
-git add src/core/nartis.h src/core/nartis.cpp src/main.cpp
+git add src/core/nartis.h src/core/nartis.cpp src/main.cpp test/test_nartis
 git commit -m "feat: адаптер счётчика НАРТИС на GuruxDLMS.c"
 ```
 
@@ -4285,28 +4310,42 @@ Expected: код возврата 0, оба env `SUCCESS`.
 Правка 1 в `CLAUDE.md` — найти:
 
 ````
-установлен. Тестов пока нет.
+установлен.
 
 ```sh
 ~/.platformio/penv/bin/pio run -e esp32-s3            # сборка
 ~/.platformio/penv/bin/pio run -e esp32-c3 -t upload  # прошивка
+~/.platformio/penv/bin/pio test -e native             # юнит-тесты, без платы
 ~/.platformio/penv/bin/pio device monitor             # лог, 115200
 ```
+
+Юнит-тесты есть только у протокола обмена со счётчиком: `test/test_nartis`
+гоняет `NartisMeter` через байты оптопорта — на эмуляторе счётчика и на
+реальном дампе (`docs/06-nartis-100-exchange.md`). Env `native` собирает из
+`src` только протокол (`build_src_filter`). Тесты не лезут внутрь клиента
+DLMS, поэтому при смене реализации меняется лишь `readMeter()` в тесте.
 ````
 
 заменить на:
 
 ````
-установлен. Юнит-тестов нет: каждая задача проверяется сборкой обеих плат и
-проверкой на железе (спека, раздел 12).
+установлен. Каждая задача проверяется сборкой обеих плат и проверкой на
+железе (спека, раздел 12).
 
 ```sh
 ~/.platformio/penv/bin/pio run -e esp32-s3 -e esp32-c3   # сборка обеих плат
 ~/.platformio/penv/bin/pio run -e esp32-s3 -t upload     # прошивка
 ~/.platformio/penv/bin/pio run -e esp32-s3 -t uploadfs   # веб-страницы из data/
+~/.platformio/penv/bin/pio test -e native                # юнит-тесты, без платы
 ~/.platformio/penv/bin/pio device monitor                # лог, 115200
 python3 tools/fake_cloud.py                              # заглушка облака Waterius
 ```
+
+Юнит-тесты есть только у протокола обмена со счётчиком: `test/test_nartis`
+гоняет `NartisMeter` через байты оптопорта — на эмуляторе счётчика и на
+реальном дампе (`docs/06-nartis-100-exchange.md`). Env `native` собирает из
+`src` только протокол (`build_src_filter`). Тесты не лезут внутрь Gurux,
+поэтому при смене реализации меняется лишь `readMeter()` в тесте.
 ````
 
 Правка 2 в `CLAUDE.md` — найти:

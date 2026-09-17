@@ -150,6 +150,7 @@ bool DlmsClient::sendPdu(const uint8_t* pdu, size_t len, uint8_t* resp, size_t c
 
 bool DlmsClient::connect(uint8_t phys, uint8_t client, const char* pwd) {
     connected_ = false;
+    rejected_ = false;
     ss_ = 0;
     rs_ = 0;
     dst_[0] = 0x02;                          // логический адрес 1
@@ -200,7 +201,10 @@ bool DlmsClient::connect(uint8_t phys, uint8_t client, const char* pwd) {
     // ищем result = accepted: A2 03 02 01 00
     for (size_t i = 0; i + 4 < rn; i++) {
         if (buf[i] == 0xA2 && buf[i + 1] == 0x03 && buf[i + 2] == 0x02 && buf[i + 3] == 0x01) {
-            if (buf[i + 4] != 0x00) return fail("счётчик отказал в ассоциации");
+            if (buf[i + 4] != 0x00) {
+                rejected_ = true;
+                return fail("счётчик отверг пароль");
+            }
             connected_ = true;
             return true;
         }

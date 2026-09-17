@@ -9,13 +9,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 PlatformIO Core 6.2 лежит в `~/.platformio/penv/bin/pio` и **в PATH не
 добавлен**, поэтому вызывать его нужно по полному пути. `idf.py` не
-установлен. Тестов пока нет.
+установлен.
 
 ```sh
 ~/.platformio/penv/bin/pio run -e esp32-s3            # сборка
 ~/.platformio/penv/bin/pio run -e esp32-c3 -t upload  # прошивка
+~/.platformio/penv/bin/pio test -e native             # юнит-тесты, без платы
 ~/.platformio/penv/bin/pio device monitor             # лог, 115200
 ```
+
+Юнит-тесты есть только у протокола обмена со счётчиком: `test/test_nartis`
+гоняет `NartisMeter` через байты оптопорта — на эмуляторе счётчика и на
+реальном дампе (`docs/06-nartis-100-exchange.md`). Env `native` собирает из
+`src` только протокол (`build_src_filter`). Тесты не лезут внутрь клиента
+DLMS, поэтому при смене реализации меняется лишь `readMeter()` в тесте.
 
 Пины оптопорта задаются флагами `OPTO_RX_PIN` / `OPTO_TX_PIN` в
 `platformio.ini`, отдельно для каждого env. У C3 два обязательных отличия:

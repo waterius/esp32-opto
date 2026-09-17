@@ -106,6 +106,7 @@ bool NartisMeter::read(MeterData& out) {
     for (uint8_t i = 0; i < count; i++) {
         if (!dlms_.connect(candidates[i], CLIENT_READER, pwd_)) {
             snprintf(out.error, sizeof(out.error), "адрес %u: %s", candidates[i], dlms_.lastError());
+            if (dlms_.rejected()) return false;  // тот же пароль на другом адресе — ещё одна попытка из пяти
             sleepMs(300);
             continue;
         }
