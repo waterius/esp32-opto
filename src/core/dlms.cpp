@@ -286,10 +286,23 @@ bool DlmsClient::parseString(const uint8_t* d, size_t len, char* out, size_t cap
     if (d[0] != 0x09 && d[0] != 0x0A) return false;  // octet-string / visible-string
     size_t n = d[1];
     if (n + 2 > len) return false;
+    // Строки счётчика — в cp1251 ("НАРТИС-100..."), на выходе UTF-8:
+    // латиница как есть, А–я и Ёё — двумя байтами, остальное — '?'.
     size_t k = 0;
-    for (size_t i = 0; i < n && k + 1 < cap; i++) {
+    for (size_t i = 0; i < n; i++) {
         uint8_t c = d[2 + i];
-        out[k++] = (c >= 0x20 && c < 0x7F) ? (char)c : '?';
+        uint16_t u = (c >= 0x20 && c < 0x7F) ? c : '?';
+        if (c >= 0xC0) u = (uint16_t)(0x0410 + (c - 0xC0));
+        else if (c == 0xA8) u = 0x0401;
+        else if (c == 0xB8) u = 0x0451;
+        if (u < 0x80) {
+            if (k + 1 >= cap) break;
+            out[k++] = (char)u;
+        } else {
+            if (k + 2 >= cap) break;  // символ не режем пополам
+            out[k++] = (char)(0xC0 | (u >> 6));
+            out[k++] = (char)(0x80 | (u & 0x3F));
+        }
     }
     out[k] = 0;
     return true;

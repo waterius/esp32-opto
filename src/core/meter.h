@@ -16,7 +16,7 @@ struct MeterData {
     char serial[20] = {0};             // серийный номер счётчика
     char fwVersion[20] = {0};          // версия ПО счётчика
     char time[24] = {0};               // время счётчика, "ГГГГ-ММ-ДД ЧЧ:ММ:СС"
-    char model[24] = {0};              // тип счётчика
+    char model[32] = {0};              // тип счётчика, UTF-8
     char error[48] = {0};              // текст ошибки, если valid == false
 };
 
