@@ -1,7 +1,7 @@
-// Ядро: интерфейс оптопорта. Реализация — в порту (port/opto_esp32.*).
+// Ядро: интерфейс оптопорта. Реализация — port/opto_bus.*.
 #pragma once
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
 
 namespace core {
 
@@ -13,6 +13,10 @@ struct SerialCfg {
     uint8_t stop = 1;
 };
 
+inline bool operator==(const SerialCfg& a, const SerialCfg& b) {
+    return a.baud == b.baud && a.bits == b.bits && a.parity == b.parity && a.stop == b.stop;
+}
+
 class IOptoPort {
    public:
     virtual ~IOptoPort() {}
@@ -21,6 +25,8 @@ class IOptoPort {
     virtual int read() = 0;  // -1, если пусто
     virtual int available() = 0;
     virtual void flushInput() = 0;
+    // Порт забрала прозрачная сессия: текущий обмен надо бросить сразу.
+    virtual bool abortRequested() = 0;
 };
 
 // Время — тоже из порта, чтобы ядро не зависело от Arduino.

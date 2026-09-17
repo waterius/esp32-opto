@@ -1,19 +1,33 @@
-// Общее состояние прошивки. Заполняется в main.cpp.
+// Общее состояние прошивки. Пишет loop(); веб-хендлеры читают его без блокировок
+// (это только отображение) и выставляют атомарные флаги запросов.
 #pragma once
-#include "core/meter.h"
-#include "settings.h"
+#include <atomic>
 
-extern const char* FIRMWARE_VERSION;
+#include "core/meter.h"
+#include "core/settings.h"
 
 struct AppState {
-    Settings sett;
-    core::MeterData last;      // последнее чтение счётчика
-    char cloudStatus[64] = "";  // результат последней отправки
-    uint32_t lastReadMs = 0;
-    bool readNow = false;       // запрос чтения с веб-страницы
+    core::Settings sett;
+
+    // Последнее успешное чтение счётчика (хранится в NVS)
+    core::MeterData last;
+    uint32_t lastReadAt = 0;  // UTC epoch; 0 — время было неизвестно
+    bool hasReading = false;
+
+    std::atomic<bool> meterReading{false};
+    char meterError[64] = "";  // пусто — последнее чтение без ошибок
+
+    uint32_t cloudAt = 0;       // UTC epoch последней успешной отправки
+    int cloudCode = 0;          // HTTP-код последней попытки; <0 — нет соединения; 0 — не отправляли
+    char cloudError[48] = "";   // пусто — последняя отправка успешна
+    uint8_t otaError = 0;       // код ошибки OTA через сервер, уходит полем ota_error
+
+    // Запросы с веб-страниц: поток async_tcp → loop()
+    std::atomic<bool> readNow{false};
+    std::atomic<bool> sendNow{false};
+    std::atomic<bool> rebootNow{false};
+    std::atomic<bool> settingsPending{false};
+    core::Settings pendingSettings;
 };
 
 extern AppState app;
-
-// Применить к оптопорту параметры из настроек (после прозрачной сессии тоже).
-void applySerialCfg();

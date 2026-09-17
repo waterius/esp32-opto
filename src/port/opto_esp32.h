@@ -1,16 +1,18 @@
-// Порт: оптопорт на аппаратном UART1.
-// Пины задаются в platformio.ini: OPTO_RX_PIN / OPTO_TX_PIN.
+// Порт: UART1 оптопорта. Пины — флаги OPTO_RX_PIN / OPTO_TX_PIN в platformio.ini.
+// Напрямую им пользуется только OptoBus (opto_bus.h).
 #pragma once
+#include <stddef.h>
+
 #include "../core/opto_port.h"
 
-class OptoEsp32 : public core::IOptoPort {
+class OptoEsp32 {
    public:
     void begin(const core::SerialCfg& cfg);
-    void configure(const core::SerialCfg& cfg) override;
-    size_t write(const uint8_t* data, size_t len) override;
-    int read() override;
-    int available() override;
-    void flushInput() override;
+    void configure(const core::SerialCfg& cfg);
+    size_t write(const uint8_t* data, size_t len);
+    int read();
+    int available();
+    void flushInput();
 
     const core::SerialCfg& current() const { return cfg_; }
 
@@ -18,5 +20,3 @@ class OptoEsp32 : public core::IOptoPort {
     core::SerialCfg cfg_;
     bool started_ = false;
 };
-
-extern OptoEsp32 opto;

@@ -10,8 +10,6 @@
 #define OPTO_TX_PIN 18
 #endif
 
-OptoEsp32 opto;
-
 namespace {
 
 HardwareSerial uart(1);
@@ -48,9 +46,7 @@ void OptoEsp32::begin(const core::SerialCfg& cfg) {
 }
 
 void OptoEsp32::configure(const core::SerialCfg& cfg) {
-    if (started_ && cfg_.baud == cfg.baud && cfg_.bits == cfg.bits && cfg_.parity == cfg.parity &&
-        cfg_.stop == cfg.stop)
-        return;
+    if (started_ && cfg_ == cfg) return;
     if (started_) uart.end();
     begin(cfg);
 }
