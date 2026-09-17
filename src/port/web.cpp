@@ -2,6 +2,7 @@
 
 #include <ArduinoJson.h>
 #include <ESPAsyncWebServer.h>
+#include <ElegantOTA.h>
 #include <LittleFS.h>
 
 #include <memory>
@@ -203,6 +204,7 @@ void begin() {
 
     server.on("/api/log", HTTP_GET, getLog);
     wifi_portal::registerRoutes(server);
+    ElegantOTA.begin(&server);  // страница /update: прошивка и образ LittleFS
 
     server.serveStatic("/", LittleFS, "/").setDefaultFile("index.html").setCacheControl("no-cache");
     server.onNotFound([](AsyncWebServerRequest* request) {
@@ -213,6 +215,6 @@ void begin() {
     server.begin();
 }
 
-void loop() {}
+void loop() { ElegantOTA.loop(); }
 
 }  // namespace web

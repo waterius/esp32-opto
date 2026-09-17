@@ -9,6 +9,8 @@
 #include "port/log.h"
 #include "port/net.h"
 #include "port/opto_bus.h"
+#include "port/ota_cloud.h"
+#include "port/rfc2217.h"
 #include "port/storage.h"
 
 namespace poller {
@@ -80,6 +82,24 @@ void readMeter() {
     }
 }
 
+// Блок ota в ответе облака — как в waterius main.cpp после send_data.
+void handleOta(const String& response) {
+    core::OtaRequest req;
+    core::OtaParse parsed = core::parseOta(response.c_str(), req);
+    if (parsed == core::OtaParse::None) return;
+    if (parsed == core::OtaParse::Error) {
+        app.otaError = core::OTA_ERR_PARSE;
+        storage::saveOtaError(app.otaError);
+        return;
+    }
+    if (rfc2217::active()) {
+        Log.println("OTA: пропущено, идёт прозрачная сессия — сервер пришлёт блок снова");
+        return;
+    }
+    app.otaError = ota_cloud::run(req);  // при успехе перезагрузка и сюда не вернёмся
+    storage::saveOtaError(app.otaError);
+}
+
 void sendCloud() {
     sendRetry = false;
     if (!app.hasReading) {
@@ -121,6 +141,7 @@ void sendCloud() {
         app.otaError = 0;
         storage::saveOtaError(0);
     }
+    handleOta(response);
 }
 
 }  // namespace

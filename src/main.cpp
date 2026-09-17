@@ -2,6 +2,7 @@
 // прозрачный serial по RFC 2217.
 // Дизайн: docs/superpowers/specs/2026-09-17-esp32-opto-firmware-design.md
 #include <Arduino.h>
+#include <ArduinoOTA.h>
 
 #include "app.h"
 #include "poller.h"
@@ -47,6 +48,19 @@ void saveFastConnect() {
     storage::saveSettings(app.sett);
 }
 
+// ArduinoOTA — для pio run -t upload --upload-port <IP>. Стартует, когда появилась сеть.
+void arduinoOta() {
+    static bool started = false;
+    if (!started) {
+        if (!net::connected()) return;
+        ArduinoOTA.setHostname(net::apName());
+        ArduinoOTA.setMdnsEnabled(false);
+        ArduinoOTA.begin();
+        started = true;
+    }
+    ArduinoOTA.handle();
+}
+
 }  // namespace
 
 void setup() {
@@ -70,6 +84,7 @@ void loop() {
     saveFastConnect();
     wifi_portal::loop();
     web::loop();
+    arduinoOta();
     rfc2217::loop();
     applyPendingSettings();
     poller::loop();
