@@ -165,7 +165,11 @@ void postSettings(AsyncWebServerRequest* request) {
 // Текст лога после позиции from; страница log.html опрашивает раз в секунду.
 void getLog(AsyncWebServerRequest* request) {
     uint32_t from = request->hasParam("from") ? strtoul(request->getParam("from")->value().c_str(), nullptr, 10) : 0;
-    std::unique_ptr<char[]> text(new char[LogSink::SIZE + 1]);
+    std::unique_ptr<char[]> text(new (std::nothrow) char[LogSink::SIZE + 1]);
+    if (!text) {
+        request->send(503, "text/plain", "не хватило памяти");
+        return;
+    }
     size_t len = 0;
     bool skipped = false;
     uint32_t next = Log.read(from, text.get(), LogSink::SIZE, len, skipped);

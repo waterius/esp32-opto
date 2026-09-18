@@ -164,9 +164,11 @@ int postJson(const core::Settings& s, const char* path, const char* body, String
     if (url.endsWith("/")) url.remove(url.length() - 1);
     url += path;
 
+    // plain объявлен раньше http, чтобы на выходе из функции уничтожался позже —
+    // иначе на ветке раннего выхода деструктор HTTPClient трогал бы уже мёртвый WiFiClient.
+    WiFiClient plain;
     HTTPClient http;
     http.setTimeout(HTTP_TIMEOUT_MS);
-    WiFiClient plain;
     bool ok = url.startsWith("https://") ? http.begin(tls, url) : http.begin(plain, url);
     if (!ok) return -2;
 

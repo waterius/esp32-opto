@@ -35,11 +35,15 @@ void applyPendingSettings() {
     next.channel = app.sett.channel;
 
     bool meterTurnedOn = next.meterEnabled && !app.sett.meterEnabled;
+    bool meterTurnedOff = !next.meterEnabled && app.sett.meterEnabled;
     bool reboot = next.rfcEnabled != app.sett.rfcEnabled || next.rfcPort != app.sett.rfcPort;
     app.sett = next;
     storage::saveSettings(app.sett);
     Log.println("Настройки сохранены");
     if (meterTurnedOn) poller::onMeterEnabled();
+    // Иначе после ручного выключения тумблера страница показывает старую причину
+    // ошибки (например, отказ пароля), хотя опрос выключен пользователем, не счётчиком.
+    if (meterTurnedOff) app.meterError[0] = 0;
     if (reboot) app.rebootNow.store(true);  // сервер RFC 2217 на ходу не перезапускается
 }
 

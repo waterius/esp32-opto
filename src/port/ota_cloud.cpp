@@ -16,9 +16,11 @@ const uint32_t DOWNLOAD_TIMEOUT_MS = 15000;
 bool flash(const core::OtaImage& img, int command) {
     Log.printf("OTA: %s %s\n", command == U_SPIFFS ? "ФС" : "прошивка", img.url);
 
+    // plain объявлен раньше http, чтобы уничтожался позже — иначе на ветке
+    // раннего выхода деструктор HTTPClient трогал бы уже мёртвый WiFiClient.
+    WiFiClient plain;
     HTTPClient http;
     http.setTimeout(DOWNLOAD_TIMEOUT_MS);
-    WiFiClient plain;
     bool https = strncmp(img.url, "https://", 8) == 0;
     if (!(https ? http.begin(net::tlsClient(), img.url) : http.begin(plain, img.url))) return false;
 
@@ -58,7 +60,7 @@ uint8_t run(const core::OtaRequest& req) {
     Log.println("OTA: готово, перезагрузка");
     delay(300);
     ESP.restart();
-    return core::OTA_OK;
+    return core::OTA_OK;  // недостижимо: ESP.restart() не возвращается, но не объявлен noreturn
 }
 
 }  // namespace ota_cloud
