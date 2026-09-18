@@ -98,6 +98,7 @@ SIM = {
     'read_error': 'нет ответа счётчика',
     'transparent': False,              # порт занят прозрачной сессией
     'rssi': -62, 'ip': '192.168.1.55', 'ssid': 'HomeNet',
+    'wifi_status': 'connected', 'wifi_error': '',  # failed + текст — как при отказе роутера
 }
 
 DEV = {
@@ -536,7 +537,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.json(s)
         if path == '/api/wifi_status':
             with lock:
-                return self.json({'status': 'connected', 'ssid': SIM['ssid'], 'ip': SIM['ip'],
+                return self.json({'status': SIM['wifi_status'], 'error': SIM['wifi_error'],
+                                  'ssid': SIM['ssid'], 'ip': SIM['ip'],
                                   'rssi': SIM['rssi'], 'mode': 'STA'})
         if path == '/api/networks':
             return self.json(NETWORKS)

@@ -3,6 +3,8 @@
 #include <HTTPClient.h>
 #include <WiFi.h>
 
+#include <atomic>
+
 #include "log.h"
 
 namespace net {
@@ -22,6 +24,25 @@ uint32_t lostSinceMs = 0;
 uint32_t lastTryMs = 0;
 uint32_t connectStartMs = 0;
 Status status_ = Status::Idle;
+char error_[40] = "";
+bool everConnected = false;  // с текущими настройками сети хоть раз подключились
+
+// Причина последнего отказа: пишет задача событий Wi-Fi, читает loop().
+// Спрашивать WiFi.status() бесполезно: на первой попытке arduino-esp32 не
+// выставляет WL_CONNECT_FAILED даже при AUTH_FAIL (WiFiGeneric.cpp, !first_connect),
+// а молча уходит в переподключение — отказ по паролю не отличить от молчания.
+std::atomic<uint8_t> lastReason{0};
+
+void onDisconnected(WiFiEvent_t, WiFiEventInfo_t info) {
+    lastReason.store(info.wifi_sta_disconnected.reason);
+}
+
+// Роутер ответил отказом — ждать больше нечего.
+bool refused(uint8_t reason) {
+    return reason == WIFI_REASON_AUTH_EXPIRE || reason == WIFI_REASON_4WAY_HANDSHAKE_TIMEOUT ||
+           reason == WIFI_REASON_AUTH_FAIL || reason == WIFI_REASON_HANDSHAKE_TIMEOUT ||
+           reason == WIFI_REASON_NO_AP_FOUND;
+}
 
 bool hasBssid(const uint8_t bssid[6]) {
     for (int i = 0; i < 6; ++i)
@@ -63,6 +84,7 @@ void begin(const core::Settings& s) {
     snprintf(apName_, sizeof(apName_), "esp32-opto-%02X%02X", (unsigned)((mac >> 32) & 0xFF),
              (unsigned)((mac >> 40) & 0xFF));
     tls.setInsecure();  // как в прошивке Waterius: сертификат не проверяем
+    WiFi.onEvent(onDisconnected, ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
     WiFi.persistent(false);
     WiFi.setHostname(apName_);
     configTime(0, 0, "ru.pool.ntp.org");
@@ -88,6 +110,9 @@ void loop(const core::Settings& s) {
             wasConnected = true;
             fastConnectFresh = true;
             status_ = Status::Connected;
+            error_[0] = 0;
+            everConnected = true;
+            lastReason.store(0);
             lostSinceMs = 0;
             Log.printf("Wi-Fi: подключено к %s, IP %s\n", WiFi.SSID().c_str(),
                           WiFi.localIP().toString().c_str());
@@ -109,6 +134,18 @@ void loop(const core::Settings& s) {
         if (!ap_) startAp(s);
         return;
     }
+    // Сеть ввели только что, и роутер отказал — это ответ, а не молчание: ждать
+    // AP_AFTER_MS незачем, пользователю прямо сейчас нужна страница /wifi.
+    // Уже работавшую сеть это не трогает: там отказ бывает и при перезагрузке роутера.
+    uint8_t reason = lastReason.load();
+    if (!ap_ && !everConnected && refused(reason)) {
+        snprintf(error_, sizeof(error_), "%s",
+                 reason == WIFI_REASON_NO_AP_FOUND ? "сеть не найдена" : "роутер отверг пароль");
+        status_ = Status::Failed;
+        Log.printf("Wi-Fi: %s (код %u)\n", error_, (unsigned)reason);
+        startAp(s);
+        return;
+    }
     if (!ap_ && now - lostSinceMs >= AP_AFTER_MS) startAp(s);
     if (ap_ && now - lastTryMs >= AP_RETRY_MS) {
         WiFi.disconnect();
@@ -123,6 +160,9 @@ void reconnect(const core::Settings& s) {
     beginSta(s);
     status_ = Status::Connecting;
     connectStartMs = millis();
+    error_[0] = 0;
+    everConnected = false;  // пароль новый: отказ по нему снова поднимает точку сразу
+    lastReason.store(0);
     wasConnected = false;
     if (!lostSinceMs) lostSinceMs = millis();
 }
@@ -130,6 +170,7 @@ void reconnect(const core::Settings& s) {
 bool connected() { return WiFi.status() == WL_CONNECTED; }
 bool apActive() { return ap_; }
 Status status() { return status_; }
+const char* error() { return error_; }
 
 const char* modeName() {
     if (!ap_) return "STA";

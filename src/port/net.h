@@ -17,6 +17,7 @@ void reconnect(const core::Settings& s);
 bool connected();
 bool apActive();
 Status status();
+const char* error();  // причина отказа для страницы /wifi; пусто — отказа не было
 const char* modeName();  // "STA", "AP", "AP+STA"
 const char* apName();    // esp32-opto-XXXX — имя точки доступа и hostname
 String ip();

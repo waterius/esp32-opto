@@ -144,6 +144,7 @@ void getWifiStatus(AsyncWebServerRequest* request) {
     static const char* NAMES[] = {"idle", "connecting", "connected", "failed"};
     JsonDocument doc;
     doc["status"] = NAMES[(int)net::status()];
+    doc["error"] = net::error();
     doc["ssid"] = app.sett.ssid;
     doc["ip"] = net::ip();
     doc["rssi"] = net::rssi();

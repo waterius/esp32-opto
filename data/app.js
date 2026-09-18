@@ -45,11 +45,14 @@ function formSubmit(event, form, action, done) {
         data.append(inp.name, inp.value.trim());
     });
     form.querySelectorAll('p.error').forEach(p => p.classList.add('hd'));
+    const submit = form.querySelector('button[type=submit]');
+    if (submit) submit.disabled = true;
     ajax(action, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: data
     }, res => {
+        if (submit) submit.disabled = false;
         if (res.errors && Object.keys(res.errors).length) {
             for (const k in res.errors) {
                 const el = $(k + '-error');
@@ -57,6 +60,8 @@ function formSubmit(event, form, action, done) {
                 el.textContent = res.errors[k];
                 el.classList.remove('hd');
             }
+            // Форму не приняли — сообщение об успехе, если оно висело, больше не верно
+            form.querySelectorAll('p.ok').forEach(p => p.classList.add('hd'));
             return;
         }
         if (done) done(res);
@@ -192,7 +197,8 @@ function wifiPage() {
 
 function loadWifiStatus() {
     ajax('/api/wifi_status', {}, s => {
-        setText('wifi-status', WIFI_STATUS[s.status] || s.status);
+        const state = WIFI_STATUS[s.status] || s.status;
+        setText('wifi-status', state + (s.error ? ': ' + s.error : ''));
         setText('wifi-ssid', s.ssid || '—');
         setText('wifi-ip', s.ip || '—');
         setText('wifi-rssi', s.status == 'connected' ? s.rssi + ' дБм' : '—');
@@ -237,9 +243,12 @@ function renderNetworks(list) {
 }
 
 function saveWifi(event, form) {
-    $('wifi-result').classList.add('hd');
+    // Сообщение показываем сразу, а не по ответу: устройство уходит на канал
+    // роутера, телефон теряет его сеть, и ответ до страницы может не дойти
+    showOk('wifi-result', 'Подключаюсь к сети… Телефон может отключиться от устройства — это нормально.');
     formSubmit(event, form, '/api/wifi', () => {
-        showOk('wifi-result', 'Подключаюсь… Если связь с устройством пропала — снова подключитесь к его сети Wi-Fi.');
+        showOk('wifi-result', 'Подключаюсь… Если связь с устройством пропала — снова подключитесь к его сети Wi-Fi. ' +
+            'Если пароль не подойдёт, устройство поднимет свою сеть заново через несколько секунд.');
     });
 }
 
