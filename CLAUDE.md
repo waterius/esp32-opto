@@ -18,6 +18,7 @@ PlatformIO Core 6.2 лежит в `~/.platformio/penv/bin/pio` и **в PATH не
 ~/.platformio/penv/bin/pio test -e native                # юнит-тесты, без платы
 ~/.platformio/penv/bin/pio device monitor                # лог, 115200
 python3 tools/fake_cloud.py                              # заглушка облака Waterius
+python3 tools/fake_device.py                             # веб-страницы и API без платы
 ```
 
 Юнит-тесты есть только у протокола обмена со счётчиком: `test/test_nartis`
@@ -53,7 +54,9 @@ data/         четыре страницы, app.js, style.css — образ Li
 lib/rfc2217-server/  копия igrr/rfc2217-server с патчем (см. PATCHES.md)
 test/test_nartis/    юнит-тесты протокола: эмулятор счётчика и реальный дамп
 tools/        nartis_probe.py — опрос счётчика с компьютера, fake_cloud.py —
-              заглушка облака для проверки отправки и OTA
+              заглушка облака для проверки отправки и OTA, fake_device.py —
+              симулятор устройства: страницы из data/ и API прошивки без платы,
+              значения счётчика задаются на его странице /sim
 docs/         исследование ИК-головки RIXUTECH на CP2102N и её доработки
 ```
 
