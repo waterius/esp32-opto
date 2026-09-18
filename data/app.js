@@ -60,8 +60,8 @@ function formSubmit(event, form, action, done) {
                 el.textContent = res.errors[k];
                 el.classList.remove('hd');
             }
-            // Форму не приняли — сообщение об успехе, если оно висело, больше не верно
-            form.querySelectorAll('p.ok').forEach(p => p.classList.add('hd'));
+            // Форму не приняли — прошлый исход, если он висел, больше не верен
+            form.querySelectorAll('p.ok, p.form-error').forEach(p => p.classList.add('hd'));
             return;
         }
         if (done) done(res);
@@ -181,6 +181,14 @@ function saveSettings(event, form) {
 
 /* ---------- Wi-Fi ---------- */
 
+// Сколько не доверять состоянию после отправки формы: прошивка применяет сеть
+// в своём цикле, уже отдав ответ странице.
+const WIFI_SETTLE_MS = 1500;
+
+// Идёт попытка, начатая с этой страницы.
+let wifiAttempt = false;
+let wifiAttemptAt = 0;
+
 const WIFI_STATUS = {
     idle: 'не подключено',
     connecting: 'подключение…',
@@ -207,7 +215,27 @@ function loadWifiStatus() {
         setText('wifi-ip', s.ip || '—');
         setText('wifi-rssi', s.status == 'connected' ? s.rssi + ' дБм' : '—');
         setText('wifi-mode', s.mode);
+        // Пока ответа на «Подключиться» нет, состояние дублируется под кнопкой:
+        // таблица наверху страницы, и на телефоне до неё надо долистать
+        if (wifiAttempt && Date.now() - wifiAttemptAt > WIFI_SETTLE_MS) showAttemptResult(s);
     });
+}
+
+function showAttemptResult(s) {
+    if (s.status == 'connected') {
+        wifiAttempt = false;
+        setWifiResult('Подключено к сети ' + (s.ssid || '') + ', IP ' + s.ip +
+            '. Дальше устройство доступно по этому адресу из домашней сети.', 'ok');
+    } else if (s.status == 'failed' && s.error) {
+        wifiAttempt = false;
+        setWifiResult(s.error + '. Проверьте название сети и пароль и попробуйте снова.', 'form-error');
+    }
+}
+
+function setWifiResult(text, cls) {
+    const el = $('wifi-result');
+    el.textContent = text;
+    el.className = cls;  // ok — зелёным, form-error — красной плашкой
 }
 
 function loadNetworks() {
@@ -249,10 +277,13 @@ function renderNetworks(list) {
 function saveWifi(event, form) {
     // Сообщение показываем сразу, а не по ответу: устройство уходит на канал
     // роутера, телефон теряет его сеть, и ответ до страницы может не дойти
-    showOk('wifi-result', 'Подключаюсь к сети… Телефон может отключиться от устройства — это нормально.');
+    setWifiResult('Подключаюсь к сети… Телефон может отключиться от устройства — это нормально.', 'ok');
     formSubmit(event, form, '/api/wifi', () => {
-        showOk('wifi-result', 'Подключаюсь… Если связь с устройством пропала — снова подключитесь к его сети Wi-Fi. ' +
-            'Если пароль не подойдёт, устройство поднимет свою сеть заново через несколько секунд.');
+        // Прошивка применяет новую сеть уже после ответа, поэтому первые
+        // полторы секунды состояние ещё от прошлого подключения — его не берём
+        wifiAttempt = true;
+        wifiAttemptAt = Date.now();
+        setWifiResult('Подключаюсь… Если связь с устройством пропала — снова подключитесь к его сети Wi-Fi.', 'ok');
     });
 }
 
