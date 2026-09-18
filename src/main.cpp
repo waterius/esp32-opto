@@ -14,9 +14,15 @@
 #include "port/web.h"
 #include "port/wifi_portal.h"
 
+#ifndef BOOT_PIN
+#define BOOT_PIN 0
+#endif
+
 AppState app;
 
 namespace {
+
+const uint32_t FACTORY_RESET_HOLD_MS = 5000;
 
 // Настройки со страницы /settings. В NVS пишет только loop().
 void applyPendingSettings() {
@@ -61,12 +67,31 @@ void arduinoOta() {
     ArduinoOTA.handle();
 }
 
+// Удержание BOOT 5 секунд — сброс к заводским настройкам.
+void checkFactoryReset() {
+    static uint32_t pressedAt = 0;
+    if (digitalRead(BOOT_PIN) == HIGH) {
+        pressedAt = 0;
+        return;
+    }
+    if (pressedAt == 0) {
+        pressedAt = millis() | 1;
+        return;
+    }
+    if (millis() - pressedAt < FACTORY_RESET_HOLD_MS) return;
+    Log.println("Сброс к заводским настройкам");
+    storage::resetAll();
+    delay(300);
+    ESP.restart();
+}
+
 }  // namespace
 
 void setup() {
     Log.begin(115200);
     delay(200);
     Log.printf("esp32-opto %s\n", FIRMWARE_VERSION);
+    pinMode(BOOT_PIN, INPUT_PULLUP);
 
     storage::loadSettings(app.sett);
     app.hasReading = storage::loadLastReading(app.last, app.lastReadAt);
@@ -88,6 +113,7 @@ void loop() {
     rfc2217::loop();
     applyPendingSettings();
     poller::loop();
+    checkFactoryReset();
     if (app.rebootNow.load()) {
         delay(300);
         ESP.restart();
