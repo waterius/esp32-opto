@@ -2,6 +2,7 @@
 
 #include <HTTPClient.h>
 #include <WiFi.h>
+#include <esp_netif.h>
 
 #include <atomic>
 
@@ -13,6 +14,7 @@ namespace {
 
 const uint32_t HTTP_TIMEOUT_MS = 12000;  // как SERVER_TIMEOUT в waterius
 const uint32_t RADIO_OFF_MS = 200;       // пауза между выключением и включением радио
+const IPAddress FALLBACK_DNS(8, 8, 8, 8);  // как DEF_FALLBACK_DNS в waterius
 
 core::WifiPolicy policy;
 WiFiClientSecure tls;
@@ -108,7 +110,30 @@ void stopAp() {
     Log.println("Wi-Fi: точка доступа выключена");
 }
 
+// Статический адрес или DHCP. Запасной DNS ставится в обоих случаях: мёртвый
+// DNS роутера — типовая причина «в сети, а в облако не ходит».
+void applyIpConfig(const core::Settings& s) {
+    if (!s.ip) {
+        // Сброс возможной прошлой статики: с этими адресами SDK уходит в DHCP
+        WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE);
+        return;
+    }
+    IPAddress dns = s.dns ? IPAddress(s.dns) : IPAddress(s.gateway);
+    WiFi.config(IPAddress(s.ip), IPAddress(s.gateway), IPAddress(s.mask), dns, FALLBACK_DNS);
+}
+
+// DHCP присылает свои серверы и затирает наши, поэтому запасной прописывается
+// уже после получения адреса — вторым, основной остаётся роутерский.
+void setBackupDns() {
+    esp_netif_dns_info_t dns = {};
+    dns.ip.type = ESP_IPADDR_TYPE_V4;
+    dns.ip.u_addr.ip4.addr = (uint32_t)FALLBACK_DNS;
+    esp_netif_t* netif = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
+    if (netif) esp_netif_set_dns_info(netif, ESP_NETIF_DNS_BACKUP, &dns);
+}
+
 void beginSta(const core::Settings& s, bool fast) {
+    applyIpConfig(s);
     // Быстрый коннект бьёт в сохранённые канал и BSSID — без скана эфира.
     // Полный скан медленнее, но находит роутер, который переехал.
     const uint8_t* bssid = fast && s.channel && hasBssid(s.bssid) ? s.bssid : nullptr;
@@ -194,6 +219,7 @@ void loop(const core::Settings& s) {
         everConnected = true;
         error_[0] = 0;
         lastReason_.store(0);
+        setBackupDns();
         Log.printf("Wi-Fi: подключено к %s, IP %s, RSSI %d\n", WiFi.SSID().c_str(),
                    WiFi.localIP().toString().c_str(), WiFi.RSSI());
     } else if (!up && wasConnected) {

@@ -13,10 +13,22 @@ struct AppState {
     // сеть, страницы и обновление. Ставится в setup(), дальше не меняется.
     bool safeMode = false;
 
-    // Последнее успешное чтение счётчика (хранится в NVS)
+    // Последнее успешное чтение счётчика (хранится в NVS).
+    // Пишет только poller из loop(), читают веб-хендлеры из задачи async_tcp —
+    // структура большая, и без счётчика версий страница может показать половину
+    // прошлых показаний и половину новых (тарифы — double, на 32 битах рвётся
+    // пополам). Писать через AppState::WriteReading, читать через readReading().
     core::MeterData last;
     uint32_t lastReadAt = 0;  // UTC epoch; 0 — время было неизвестно
     bool hasReading = false;
+    std::atomic<uint32_t> readingSeq{0};  // нечётное — запись идёт прямо сейчас
+
+    // Только из loop(): поднимает версию до и после записи показаний.
+    struct WriteReading {
+        AppState& app;
+        explicit WriteReading(AppState& a) : app(a) { app.readingSeq.fetch_add(1); }
+        ~WriteReading() { app.readingSeq.fetch_add(1); }
+    };
 
     std::atomic<bool> meterReading{false};
     char meterError[64] = "";  // пусто — последнее чтение без ошибок
@@ -35,3 +47,19 @@ struct AppState {
 };
 
 extern AppState app;
+
+// Снимок показаний для веб-хендлера: повторяем, если loop() писал в этот момент.
+// Восьми попыток заведомо хватает — запись занимает доли микросекунды.
+inline bool readReading(core::MeterData& out, uint32_t& readAt) {
+    for (int attempt = 0; attempt < 8; ++attempt) {
+        uint32_t before = app.readingSeq.load();
+        if (before & 1) continue;
+        out = app.last;
+        readAt = app.lastReadAt;
+        bool has = app.hasReading;
+        if (app.readingSeq.load() == before) return has;
+    }
+    out = app.last;
+    readAt = app.lastReadAt;
+    return app.hasReading;
+}

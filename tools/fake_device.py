@@ -84,7 +84,8 @@ SETTINGS = {
     'baud': 9600, 'bits': 8, 'parity': 'N', 'stop': 1,
     'meter_enabled': True, 'meter_addr': 0, 'meter_pwd': '111',
     'period_min': 60, 'host': 'http://127.0.0.1:8080', 'key': 'sim-key', 'email': '',
-    'rfc_enabled': True, 'rfc_port': 2217, 'reboot_min': 60,
+    'rfc_enabled': True, 'rfc_port': 2217,
+    'reboot_min': 60, 'ip': '', 'gateway': '', 'mask': '', 'dns': '',
 }
 
 # Что «увидит» прошивка при чтении. Меняется со страницы /sim.
@@ -286,6 +287,11 @@ def status():
 
 # --- разбор форм: те же проверки и тексты ошибок, что в src/port/web.cpp ---
 
+def is_ipv4(value):
+    parts = value.split('.')
+    return len(parts) == 4 and all(p.isdigit() and 0 <= int(p) <= 255 for p in parts)
+
+
 def post_settings(form):
     errors, s = {}, dict(SETTINGS)
 
@@ -355,10 +361,21 @@ def post_settings(form):
     if reboot_min is not None:
         s['reboot_min'] = reboot_min
 
+    # Те же проверки адресов, что в paramIp()/postSettings в src/port/web.cpp
+    for name in ('ip', 'gateway', 'mask', 'dns'):
+        value = form.get(name, [''])[0].strip()
+        if value and not is_ipv4(value):
+            errors[name] = 'Адрес вида 192.168.1.10 или пусто'
+        else:
+            s[name] = value
+    if 'ip' not in errors and s['ip'] and not (s['gateway'] and s['mask']):
+        errors['ip'] = 'Со статическим адресом нужны шлюз и маска'
+
     if errors:
         return {'errors': errors}
     with lock:
-        reboot = s['rfc_enabled'] != SETTINGS['rfc_enabled'] or s['rfc_port'] != SETTINGS['rfc_port']
+        # core::needsRestart в src/core/settings.h
+        reboot = any(s[k] != SETTINGS[k] for k in ('rfc_enabled', 'rfc_port', 'ip', 'gateway', 'mask', 'dns'))
         enabled_now = s['meter_enabled'] and not SETTINGS['meter_enabled']
         SETTINGS.update(s)
         if enabled_now:

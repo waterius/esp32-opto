@@ -74,6 +74,19 @@
         <input id="reboot_min" name="reboot_min" type="number" min="0" max="1440">
         <p class="error hd" id="reboot_min-error"></p>
         <p class="text">Стек Wi-Fi иногда залипает так, что помогает только перезагрузка. Пока кто-то настраивает устройство через его точку доступа, она не сработает.</p>
+        <label for="ip">Статический адрес (пусто — DHCP)</label>
+        <input id="ip" name="ip" maxlength="15" placeholder="192.168.1.50">
+        <p class="error hd" id="ip-error"></p>
+        <label for="gateway">Шлюз</label>
+        <input id="gateway" name="gateway" maxlength="15" placeholder="192.168.1.1">
+        <p class="error hd" id="gateway-error"></p>
+        <label for="mask">Маска</label>
+        <input id="mask" name="mask" maxlength="15" placeholder="255.255.255.0">
+        <p class="error hd" id="mask-error"></p>
+        <label for="dns">DNS (пусто — шлюз)</label>
+        <input id="dns" name="dns" maxlength="15" placeholder="192.168.1.1">
+        <p class="error hd" id="dns-error"></p>
+        <p class="text">Смена адреса перезагружает устройство. Запасной DNS 8.8.8.8 прошивка подставляет сама.</p>
 
         <h2>Прозрачный serial (RFC 2217)</h2>
         <div class="chk">
