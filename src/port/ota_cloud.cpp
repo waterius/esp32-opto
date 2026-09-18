@@ -34,7 +34,12 @@ bool flash(const core::OtaImage& img, int command) {
         http.end();
         return false;
     }
-    Update.setMD5(img.md5);
+    if (!Update.setMD5(img.md5)) {
+        Log.printf("OTA: контрольная сумма не принята: %s\n", img.md5);
+        Update.abort();
+        http.end();
+        return false;
+    }
     size_t written = Update.writeStream(*http.getStreamPtr());
     bool ok = written == (size_t)len && Update.end();
     if (!ok) {
