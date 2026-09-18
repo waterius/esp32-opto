@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>esp32-opto — лог</title>
+    <link rel="stylesheet" href="/style.css">
+    <script src="/app.js"></script>
+</head>
+<body onload="logPage()">
+<div class="wrap wide">
+    <nav class="nav">
+        <a href="/">Статус</a>
+        <a href="/settings.html">Настройки</a>
+        <a href="/wifi.html">Wi-Fi</a>
+        <a class="on" href="/log.html">Лог</a>
+        <a href="/update">Обновление</a>
+    </nav>
+    <p id="link-lost" class="form-error hd">Нет связи с устройством</p>
+
+    <h2>Лог</h2>
+    <p class="text">Сообщения прошивки и байты оптопорта (TX — в счётчик, RX — от счётчика) в реальном времени. Устройство хранит последние 16 КБ — примерно 250 строк.</p>
+    <div class="chk">
+        <input type="checkbox" id="log-follow" checked>
+        <label for="log-follow">Автопрокрутка</label>
+    </div>
+    <pre id="log" class="log"></pre>
+    <button class="btn-serv" type="button" onclick="$('log').textContent = ''">Очистить экран</button>
+</div>
+</body>
+</html>

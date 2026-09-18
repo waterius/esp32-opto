@@ -7,6 +7,7 @@
 | [03-esp32-c6-wiring.md](03-esp32-c6-wiring.md) | Подключение к ESP32-C6 Super Mini: UART, выбор пинов, питание |
 | [04-firmware.md](04-firmware.md) | ESPHome и Arduino: минимальный опрос счётчика |
 | [05-alternatives.md](05-alternatives.md) | ESP32-S3 без пайки, вариант через RSTb, своя ИК-часть на плате |
+| [06-nartis-100-exchange.md](06-nartis-100-exchange.md) | Дамп обмена с НАРТИС-100.121RL по оптопорту: кадры HDLC/COSEM, объекты, выводы для прошивки |
 | [sources.md](sources.md) | Источники |
 
 ## Уровни достоверности

@@ -1,0 +1,31 @@
+/* Цвета и формы — по мотивам портала waterius (ESP8266/data/static/style.css) */
+*{box-sizing:border-box;margin:0;padding:0;font-family:Roboto,Helvetica,Arial,sans-serif}
+body{background:#fff;color:#232323}
+.wrap{max-width:420px;margin:0 auto;padding:16px}
+.nav{display:flex;flex-wrap:wrap;gap:16px;margin-bottom:8px}
+.nav a{color:#1655F5;text-decoration:none;font-weight:700}
+.nav a.on{color:#232323}
+h2{font-size:22px;font-weight:700;margin:24px 0 12px}
+table{width:100%;border-collapse:collapse}
+td{padding:6px 0;border-bottom:1px solid #eee;vertical-align:top;line-height:20px}
+td:last-child{text-align:right;padding-left:12px;word-break:break-word}
+label{display:block;margin:12px 0 4px;font-size:14px}
+input,select{width:100%;height:44px;padding:0 12px;border:1px solid #ccc;border-radius:8px;font-size:16px;background:#fff}
+.chk{display:flex;align-items:center;gap:8px;margin:12px 0}
+.chk input{width:22px;height:22px}
+.chk label{margin:0;font-size:16px}
+.pw{position:relative}
+.pw input{padding-right:96px}
+.pw button{position:absolute;right:6px;top:6px;height:32px;padding:0 8px;border:0;background:none;color:#1655F5;font-size:14px}
+.btn{width:100%;height:48px;margin-top:16px;border:0;border-radius:8px;background:#1655F5;color:#fff;font-size:16px}
+.btn:disabled{background:#9db4f0}
+.btn-serv{width:100%;height:44px;margin-top:12px;border:1px solid #1655F5;border-radius:8px;background:#fff;color:#1655F5;font-size:16px}
+.error{color:#F53410;font-size:14px;margin-top:4px}
+.form-error{color:#F53410;background:#FFF0ED;padding:12px;border-radius:8px;margin:8px 0}
+.ok{color:#1a7f37;margin-top:12px;line-height:20px}
+.text{line-height:20px;margin:8px 0}
+.net{display:flex;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid #eee;cursor:pointer}
+.lvl{color:#1655F5;white-space:nowrap}
+.wrap.wide{max-width:960px}
+.log{height:65vh;overflow:auto;margin-top:8px;padding:8px;border:1px solid #ccc;border-radius:8px;background:#f7f7f7;font:12px/16px Menlo,Consolas,monospace;white-space:pre-wrap;word-break:break-all}
+.hd{display:none}

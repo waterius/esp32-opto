@@ -23,3 +23,12 @@
 
 - [AliExpress: kWh Meter Infrared Reading Head IEC1107 Probe CP2102](https://www.aliexpress.com/item/1005004623593781.html)
 - [Amazon: KWh Meter Infrared Reading Head IEC1107 CP2102](https://www.amazon.com/Infrared-Reading-Interface-ma-netic-IEC62056/dp/B0F63SB6TB)
+
+## Счётчик НАРТИС
+
+- [РЭ НАРТИС-100 НРДЛ.411152.003РЭ](https://cdn.tns-e.ru/iblock/75e/75e1acc8af3ec04732425482dc52bcdb/Rukovodstvo_po_ekspluatatsii_Nartis_100.pdf) — условное обозначение, оптопорт, СПОДЭС, заводские пароли (зеркало: на nartis.ru файл отдаёт 404)
+- [СТО 34.01-5.1-006-2017 (СПОДЭС)](https://77cs.ru/f/cto_340151-006-2017.pdf) — HDLC, адреса клиента и сервера, режим E, OBIS
+- [РЭ НАРТИС-И100 НРДЛ.411152.101РЭ](https://www.nartis.ru/upload/iblock/5f6/nmge5xsoiskcr0avk6yrwilnnctko9rp.pdf) — для сравнения с И-серией
+- [яЭнергетик: сетевые адреса НАРТИС](https://yaenergetik.ru/blog/kak-konfigurirovat-schyotchiki-nartis-cherez-yaemost-nastrojka-setevyh-adresov-i-konfigurator/) — 16 у серии 100/300, 17 у И-серии
+- [SAURES: подключение НАРТИС](https://www.saures.ru/kb/article-5991/)
+- [latonita/esphome-dlms-cosem](https://github.com/latonita/esphome-dlms-cosem) — рабочий клиент СПОДЭС, разобран И100-W112

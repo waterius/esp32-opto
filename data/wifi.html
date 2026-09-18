@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>esp32-opto — Wi-Fi</title>
+    <link rel="stylesheet" href="/style.css">
+    <script src="/app.js"></script>
+</head>
+<body onload="wifiPage()">
+<div class="wrap">
+    <nav class="nav">
+        <a href="/">Статус</a>
+        <a href="/settings.html">Настройки</a>
+        <a class="on" href="/wifi.html">Wi-Fi</a>
+        <a href="/log.html">Лог</a>
+        <a href="/update">Обновление</a>
+    </nav>
+    <p id="link-lost" class="form-error hd">Нет связи с устройством</p>
+
+    <h2>Подключение</h2>
+    <table>
+        <tr><td>Состояние</td><td id="wifi-status">…</td></tr>
+        <tr><td>Сеть</td><td id="wifi-ssid">—</td></tr>
+        <tr><td>IP</td><td id="wifi-ip">—</td></tr>
+        <tr><td>Сигнал</td><td id="wifi-rssi">—</td></tr>
+        <tr><td>Режим</td><td id="wifi-mode">—</td></tr>
+    </table>
+
+    <h2>Выберите сеть</h2>
+    <p class="text">Сеть Wi-Fi 2,4 ГГц, через которую устройство будет работать.</p>
+    <div id="networks"></div>
+    <button class="btn-serv" type="button" onclick="loadNetworks()">Обновить список</button>
+
+    <form onsubmit="saveWifi(event, this)">
+        <label for="ssid">Название сети</label>
+        <input id="ssid" name="ssid" maxlength="32" required>
+        <p class="error hd" id="ssid-error"></p>
+        <label for="password">Пароль</label>
+        <div class="pw">
+            <input id="password" name="password" type="password" maxlength="64" autocomplete="off">
+            <button type="button" onclick="showPW('password')">показать</button>
+        </div>
+        <p class="error hd" id="password-error"></p>
+        <input type="hidden" id="wifi_channel" name="wifi_channel">
+        <input type="hidden" id="bssid" name="bssid">
+        <p class="text">Пока устройство подключается к роутеру, телефон может от него отключиться. Тогда снова выберите сеть устройства в списке Wi-Fi.</p>
+        <button class="btn" type="submit">Подключиться</button>
+        <p class="ok hd" id="wifi-result"></p>
+    </form>
+</div>
+</body>
+</html>

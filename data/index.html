@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>esp32-opto — статус</title>
+    <link rel="stylesheet" href="/style.css">
+    <script src="/app.js"></script>
+</head>
+<body onload="statusPage()">
+<div class="wrap">
+    <nav class="nav">
+        <a class="on" href="/">Статус</a>
+        <a href="/settings.html">Настройки</a>
+        <a href="/wifi.html">Wi-Fi</a>
+        <a href="/log.html">Лог</a>
+        <a href="/update">Обновление</a>
+    </nav>
+    <p id="link-lost" class="form-error hd">Нет связи с устройством</p>
+
+    <h2>Счётчик</h2>
+    <table>
+        <tr><td>Состояние</td><td id="meter-state">…</td></tr>
+        <tr><td>Серийный номер</td><td id="serial">—</td></tr>
+        <tr><td>Модель</td><td id="model">—</td></tr>
+        <tr><td>Версия ПО</td><td id="meter-fw">—</td></tr>
+        <tr><td>Время счётчика</td><td id="meter-time">—</td></tr>
+    </table>
+
+    <h2>Показания</h2>
+    <table>
+        <tr><td>Прочитаны</td><td id="read-at">—</td></tr>
+        <tr><td>Всего, кВт·ч</td><td id="total">—</td></tr>
+    </table>
+    <table id="tariffs"></table>
+
+    <h2>Облако</h2>
+    <table>
+        <tr><td>Последняя отправка</td><td id="cloud">—</td></tr>
+        <tr><td>Следующая через</td><td id="cloud-next">—</td></tr>
+    </table>
+    <button class="btn" id="btn-read" onclick="action('/api/read', this)">Прочитать сейчас</button>
+    <button class="btn" onclick="action('/api/send', this)">Отправить сейчас</button>
+
+    <h2>Устройство</h2>
+    <table>
+        <tr><td>Прошивка</td><td id="fw">—</td></tr>
+        <tr><td>IP</td><td id="ip">—</td></tr>
+        <tr><td>Сигнал Wi-Fi</td><td id="rssi">—</td></tr>
+        <tr><td>Режим Wi-Fi</td><td id="wifi-mode">—</td></tr>
+        <tr><td>Работает</td><td id="uptime">—</td></tr>
+        <tr><td>Свободная память</td><td id="heap">—</td></tr>
+    </table>
+    <button class="btn-serv" onclick="reboot(this)">Перезагрузить</button>
+</div>
+</body>
+</html>

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>esp32-opto — настройки</title>
+    <link rel="stylesheet" href="/style.css">
+    <script src="/app.js"></script>
+</head>
+<body onload="settingsPage()">
+<div class="wrap">
+    <nav class="nav">
+        <a href="/">Статус</a>
+        <a class="on" href="/settings.html">Настройки</a>
+        <a href="/wifi.html">Wi-Fi</a>
+        <a href="/log.html">Лог</a>
+        <a href="/update">Обновление</a>
+    </nav>
+    <p id="link-lost" class="form-error hd">Нет связи с устройством</p>
+
+    <form id="settings" onsubmit="saveSettings(event, this)">
+        <h2>Счётчик НАРТИС</h2>
+        <div class="chk">
+            <input type="checkbox" id="meter_enabled" name="meter_enabled">
+            <label for="meter_enabled">В работе — опрашивать счётчик</label>
+        </div>
+        <label for="meter_addr">Адрес (0 — определить самому)</label>
+        <input id="meter_addr" name="meter_addr" type="number" min="0" max="127">
+        <p class="error hd" id="meter_addr-error"></p>
+        <label for="meter_pwd">Пароль LLS</label>
+        <div class="pw">
+            <input id="meter_pwd" name="meter_pwd" type="password" maxlength="16" autocomplete="off">
+            <button type="button" onclick="showPW('meter_pwd')">показать</button>
+        </div>
+        <p class="error hd" id="meter_pwd-error"></p>
+        <p class="text">Неверный пароль выключает опрос: после 5 ошибок счётчик блокируется на сутки.</p>
+
+        <h2>Оптопорт</h2>
+        <label for="baud">Скорость</label>
+        <select id="baud" name="baud">
+            <option>300</option><option>600</option><option>1200</option><option>2400</option>
+            <option>4800</option><option>9600</option><option>19200</option><option>38400</option>
+            <option>57600</option><option>115200</option>
+        </select>
+        <p class="error hd" id="baud-error"></p>
+        <label for="bits">Биты данных</label>
+        <select id="bits" name="bits"><option>5</option><option>6</option><option>7</option><option>8</option></select>
+        <p class="error hd" id="bits-error"></p>
+        <label for="parity">Чётность</label>
+        <select id="parity" name="parity">
+            <option value="N">нет</option><option value="E">чётность</option><option value="O">нечётность</option>
+        </select>
+        <p class="error hd" id="parity-error"></p>
+        <label for="stop">Стоп-биты</label>
+        <select id="stop" name="stop"><option>1</option><option>2</option></select>
+        <p class="error hd" id="stop-error"></p>
+
+        <h2>Облако Waterius</h2>
+        <label for="period_min">Период выхода на связь, мин</label>
+        <input id="period_min" name="period_min" type="number" min="1" max="1440">
+        <p class="error hd" id="period_min-error"></p>
+        <label for="host">Сервер</label>
+        <input id="host" name="host" maxlength="63">
+        <p class="error hd" id="host-error"></p>
+        <label for="key">Ключ</label>
+        <input id="key" name="key" maxlength="40">
+        <p class="error hd" id="key-error"></p>
+        <label for="email">E-mail</label>
+        <input id="email" name="email" maxlength="63">
+        <p class="error hd" id="email-error"></p>
+
+        <h2>Прозрачный serial (RFC 2217)</h2>
+        <div class="chk">
+            <input type="checkbox" id="rfc_enabled" name="rfc_enabled">
+            <label for="rfc_enabled">Включён</label>
+        </div>
+        <label for="rfc_port">TCP-порт</label>
+        <input id="rfc_port" name="rfc_port" type="number" min="1" max="65535">
+        <p class="error hd" id="rfc_port-error"></p>
+        <p class="text">Смена этих двух полей перезагружает устройство.</p>
+
+        <button class="btn" type="submit">Сохранить</button>
+        <p class="ok hd" id="saved"></p>
+    </form>
+</div>
+</body>
+</html>
