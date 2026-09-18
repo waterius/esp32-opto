@@ -23,6 +23,8 @@
 - [ESP32-C3-DevKitM-1 User Guide](https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32c3/esp32-c3-devkitm-1/user_guide.html) — GPIO18/19 на гребёнке J3
 - [ESP32-S3-DevKitC-1 v1.1 User Guide](https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32s3/esp32-s3-devkitc-1/user_guide_v1.1.html) — GPIO19/20 = USB_D−/D+ на гребёнке J3
 - [ESP32-C3 Super Mini — studiopieters](https://www.studiopieters.nl/esp32-c3-super-mini-pinout/) — USB-пины на гребёнку не выведены
+- [ESP32-S3 Super Mini — espboards](https://www.espboards.dev/esp32/esp32-s3-super-mini/) — чип ESP32-S3FH4R2, выведенные пины
+- [ESP32-C3 Super Mini — lastminuteengineers](https://lastminuteengineers.com/esp32-c3-super-mini-pinout-reference/) — 16 пинов, предупреждение о разной шелкографии у клонов
 - [ESPHome UART](https://esphome.io/components/uart/)
 - [ESPHome USB UART](https://esphome.io/components/usb_uart/)
 - [ESPHome IEC 62056-21 component (aquaticus)](https://aquaticus.info/iec62056.html)
