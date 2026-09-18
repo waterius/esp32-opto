@@ -12,6 +12,7 @@
 #include "port/ota_cloud.h"
 #include "port/rfc2217.h"
 #include "port/storage.h"
+#include "port/watchdog.h"
 
 namespace poller {
 namespace {
@@ -111,7 +112,7 @@ void sendCloud() {
         return;
     }
 
-    char body[768];
+    char body[896];
     String ip = net::ip();
     core::DeviceInfo dev;
     dev.fw = FIRMWARE_VERSION;
@@ -119,6 +120,9 @@ void sendCloud() {
     dev.rssi = net::rssi();
     dev.chipId = net::chipId();
     dev.otaError = app.otaError;
+    dev.resetReason = watchdog::resetReasonCode();
+    dev.uptimeS = millis() / 1000;
+    dev.wifiDisconnects = net::disconnectCount();
     if (!core::buildCloudPayload(app.last, app.lastReadAt, app.sett, dev, body, sizeof(body))) {
         snprintf(app.cloudError, sizeof(app.cloudError), "запрос не собрался");
         return;

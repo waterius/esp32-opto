@@ -12,6 +12,7 @@ const char* KEY_SETTINGS = "settings";
 const char* KEY_READING = "reading";
 const char* KEY_OTA_ERROR = "ota_error";
 const char* KEY_FAST = "fast";
+const char* KEY_BOOTS = "boots";
 
 // Пара для быстрого коннекта — отдельно от блоба настроек, см. storage.h
 struct StoredFastConnect {
@@ -63,6 +64,21 @@ void saveFastConnect(const core::Settings& s) {
     fast.channel = s.channel;
     memcpy(fast.bssid, s.bssid, sizeof(fast.bssid));
     saveBlob(KEY_FAST, &fast, sizeof(fast));
+}
+
+uint8_t loadBootCount() {
+    Preferences p;
+    if (!p.begin(NS, true)) return 0;
+    uint8_t v = p.getUChar(KEY_BOOTS, 0);
+    p.end();
+    return v;
+}
+
+void saveBootCount(uint8_t count) {
+    Preferences p;
+    if (!p.begin(NS, false)) return;
+    p.putUChar(KEY_BOOTS, count);
+    p.end();
 }
 
 bool loadLastReading(core::MeterData& m, uint32_t& readAt) {

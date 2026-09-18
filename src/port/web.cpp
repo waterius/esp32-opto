@@ -12,6 +12,7 @@
 #include "log.h"
 #include "net.h"
 #include "rfc2217.h"
+#include "watchdog.h"
 #include "wifi_portal.h"
 
 namespace web {
@@ -37,11 +38,16 @@ void getStatus(AsyncWebServerRequest* request) {
     doc["uptime_s"] = millis() / 1000;
     doc["heap"] = ESP.getFreeHeap();
     doc["wifi_mode"] = net::modeName();
+    doc["safe_mode"] = app.safeMode;
+    doc["wifi_drops"] = net::disconnectCount();
+    doc["wifi_offline_s"] = net::offlineSeconds();
+    doc["boot_reason"] = watchdog::resetReason();
 
     doc["meter_enabled"] = app.sett.meterEnabled;
     doc["meter_reading"] = app.meterReading.load();
     doc["meter_error"] = app.meterError;
     doc["transparent"] = rfc2217::active();
+    doc["transparent_idle_s"] = rfc2217::idleSeconds();
 
     doc["has_reading"] = app.hasReading;
     doc["read_at"] = app.lastReadAt;

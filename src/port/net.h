@@ -13,6 +13,9 @@ namespace net {
 enum class Status : uint8_t { Idle, Connecting, Connected, Failed };
 
 void begin(const core::Settings& s);
+// Усечённый режим после серии неудачных загрузок: точку доступа поднимаем
+// сразу, перезагрузкой по отсутствию сети не добиваем.
+void setSafeMode(bool on);
 void loop(const core::Settings& s);
 // Сеть сменили со страницы /wifi.
 void reconnect(const core::Settings& s);

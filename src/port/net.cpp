@@ -23,6 +23,7 @@ bool fastConnectFresh = false;
 bool rebootWanted = false;
 bool hasSsid_ = false;
 bool everConnected = false;  // с текущими настройками сети хоть раз подключились
+bool safeMode_ = false;
 char error_[40] = "";        // причина отказа для страницы /wifi
 
 // Пишет колбэк событий SDK (задача event loop), читает loop().
@@ -147,10 +148,16 @@ void applyAction(core::WifiAction action, const core::Settings& s) {
 void applyPolicyConfig(const core::Settings& s) {
     core::WifiPolicyCfg cfg;
     cfg.rebootAfterMs = (uint32_t)s.rebootMin * 60000UL;
+    if (safeMode_) {
+        cfg.apAfterMs = 0;      // страница /update нужна немедленно
+        cfg.rebootAfterMs = 0;  // добивать перезагрузками и так сломанную прошивку незачем
+    }
     policy.configure(cfg);
 }
 
 }  // namespace
+
+void setSafeMode(bool on) { safeMode_ = on; }
 
 void begin(const core::Settings& s) {
     uint64_t mac = ESP.getEfuseMac();

@@ -5,12 +5,14 @@
 #include <ArduinoOTA.h>
 
 #include "app.h"
+#include "core/boot_guard.h"
 #include "poller.h"
 #include "port/log.h"
 #include "port/net.h"
 #include "port/opto_bus.h"
 #include "port/rfc2217.h"
 #include "port/storage.h"
+#include "port/watchdog.h"
 #include "port/web.h"
 #include "port/wifi_portal.h"
 
@@ -23,6 +25,8 @@ AppState app;
 namespace {
 
 const uint32_t FACTORY_RESET_HOLD_MS = 5000;
+
+core::BootGuard bootGuard;
 
 // Настройки со страницы /settings. В NVS пишет только loop().
 void applyPendingSettings() {
@@ -103,18 +107,33 @@ void checkFactoryReset() {
 void setup() {
     Log.begin(115200);
     delay(200);
+    watchdog::begin();
     Log.printf("esp32-opto %s\n", FIRMWARE_VERSION);
+    // Без этой строки «устройство перезагрузилось» неотличимо от дёрганого
+    // питания, просадки и паники — а чинятся они по-разному
+    Log.printf("Причина загрузки: %s\n", watchdog::resetReason());
+    if (watchdog::trippedLastBoot()) Log.println("Прошлая перезагрузка — сторож главного цикла");
     pinMode(BOOT_PIN, INPUT_PULLUP);
+
+    storage::saveBootCount(bootGuard.onBoot(storage::loadBootCount()));
+    app.safeMode = bootGuard.safeMode();
 
     storage::loadSettings(app.sett);
     app.hasReading = storage::loadLastReading(app.last, app.lastReadAt);
     app.otaError = storage::loadOtaError();
 
+    if (app.safeMode) {
+        Log.printf("УСЕЧЁННЫЙ РЕЖИМ: %u загрузок подряд не дожили до пяти минут\n",
+                   bootGuard.bootCount());
+        Log.println("Опрос счётчика и прозрачный serial выключены. Залейте прошивку на /update");
+    }
+
     bus.begin(app.sett.serial);
+    net::setSafeMode(app.safeMode);
     net::begin(app.sett);
     web::begin();
-    if (app.sett.rfcEnabled) rfc2217::begin(app.sett.rfcPort);
-    poller::begin();
+    if (app.sett.rfcEnabled && !app.safeMode) rfc2217::begin(app.sett.rfcPort);
+    if (!app.safeMode) poller::begin();
 }
 
 void loop() {
@@ -123,14 +142,24 @@ void loop() {
     wifi_portal::loop();
     web::loop();
     arduinoOta();
-    rfc2217::loop();
+    rfc2217::loop();  // в усечённом режиме сервер не запущен и вернётся сразу
     applyPendingSettings();
-    poller::loop();
+    if (!app.safeMode) poller::loop();
     checkFactoryReset();
+
+    // Продержались достаточно долго — загрузка засчитана, счётчик обнуляется.
+    // Плановые перезагрузки (смена настроек, OTA, час без сети) случаются уже
+    // после этого и в счётчик не попадают.
+    if (bootGuard.takeBootIsGood(millis())) {
+        storage::saveBootCount(0);
+        Log.println("Загрузка признана удачной");
+    }
+
     if (net::rebootRequested()) app.rebootNow.store(true);
     if (app.rebootNow.load()) {
         delay(300);
         ESP.restart();
     }
+    watchdog::feed();
     delay(2);
 }

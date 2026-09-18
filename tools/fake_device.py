@@ -97,6 +97,8 @@ SIM = {
     'read_result': 'ok',               # ok | failed | auth | aborted
     'read_error': 'нет ответа счётчика',
     'transparent': False,              # порт занят прозрачной сессией
+    'safe_mode': False,                # усечённый режим после серии неудачных загрузок
+    'wifi_drops': 0,                   # разрывов Wi-Fi с момента загрузки
     'rssi': -62, 'ip': '192.168.1.55', 'ssid': 'HomeNet',
     'wifi_status': 'connected', 'wifi_error': '',  # failed + текст — как при отказе роутера
 }
@@ -268,9 +270,12 @@ def status():
         return {
             'fw': FIRMWARE_VERSION, 'ip': SIM['ip'], 'rssi': SIM['rssi'],
             'uptime_s': uptime_ms() // 1000, 'heap': 180000 + random.randint(0, 4000),
-            'wifi_mode': 'STA',
+            'wifi_mode': 'STA', 'safe_mode': SIM['safe_mode'],
+            'wifi_drops': SIM['wifi_drops'], 'wifi_offline_s': 0,
+            'boot_reason': 'подано питание',
             'meter_enabled': SETTINGS['meter_enabled'], 'meter_reading': DEV['reading'],
             'meter_error': DEV['meter_error'], 'transparent': SIM['transparent'],
+            'transparent_idle_s': 0,
             'has_reading': DEV['has_reading'], 'read_at': DEV['read_at'],
             'serial': last['serial'], 'model': last['model'], 'meter_fw': last['meter_fw'],
             'meter_time': last['meter_time'], 'total': last['total'], 'tariffs': last['tariffs'],

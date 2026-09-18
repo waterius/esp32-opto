@@ -106,7 +106,8 @@ function loadStatus() {
         let state = 'ок';
         if (s.meter_reading) state = 'идёт чтение…';
         else if (!s.meter_enabled) state = 'опрос выключен' + (s.meter_error ? ': ' + s.meter_error : '');
-        else if (s.transparent) state = 'порт занят прозрачной сессией';
+        else if (s.transparent) state = 'порт занят прозрачной сессией' +
+            (s.transparent_idle_s > 60 ? ' (без обмена ' + Math.floor(s.transparent_idle_s / 60) + ' мин)' : '');
         else if (s.meter_error) state = s.meter_error;
         setText('meter-state', state);
 
@@ -136,7 +137,10 @@ function loadStatus() {
         setText('uptime', fmtUptime(s.uptime_s));
         setText('heap', Math.round(s.heap / 1024) + ' КБ');
         setText('wifi-mode', s.wifi_mode);
-        $('btn-read').disabled = !s.meter_enabled;
+        setText('boot-reason', s.boot_reason || '—');
+        setText('wifi-drops', s.wifi_drops);
+        $('safe-mode').classList.toggle('hd', !s.safe_mode);
+        $('btn-read').disabled = !s.meter_enabled || s.safe_mode;
     });
 }
 

@@ -6,6 +6,7 @@
 
 #include "log.h"
 #include "net.h"
+#include "watchdog.h"
 
 namespace ota_cloud {
 namespace {
@@ -42,6 +43,9 @@ bool flash(const core::OtaImage& img, int command) {
         http.end();
         return false;
     }
+    // Запись образа идёт минутами, а loop() в это время не крутится: кормим
+    // сторож здесь, иначе он примет исправное обновление за зависание
+    Update.onProgress([](size_t, size_t) { watchdog::feed(); });
     size_t written = Update.writeStream(*http.getStreamPtr());
     bool ok = written == (size_t)len && Update.end();
     if (!ok) {

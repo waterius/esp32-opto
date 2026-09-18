@@ -17,6 +17,11 @@ void saveSettings(const core::Settings& s);
 // ради этого незачем. loadSettings() накладывает эту пару поверх блоба.
 void saveFastConnect(const core::Settings& s);
 
+// Счётчик загрузок подряд без признака «загрузка удалась»: защита от кирпича
+// после неудачной прошивки (safe mode).
+uint8_t loadBootCount();
+void saveBootCount(uint8_t count);
+
 // false — успешных чтений ещё не было. readAt — UTC epoch, 0 если время было неизвестно.
 bool loadLastReading(core::MeterData& m, uint32_t& readAt);
 void saveLastReading(const core::MeterData& m, uint32_t readAt);

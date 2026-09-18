@@ -9,6 +9,10 @@
 struct AppState {
     core::Settings sett;
 
+    // Слишком много загрузок подряд не дожили до пяти минут: работают только
+    // сеть, страницы и обновление. Ставится в setup(), дальше не меняется.
+    bool safeMode = false;
+
     // Последнее успешное чтение счётчика (хранится в NVS)
     core::MeterData last;
     uint32_t lastReadAt = 0;  // UTC epoch; 0 — время было неизвестно
