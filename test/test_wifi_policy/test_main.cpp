@@ -137,6 +137,22 @@ void test_refused_new_network_raises_ap_at_once() {
     TEST_ASSERT_TRUE_MESSAGE(w.now < 10 * SEC, "точка доступа поднялась слишком поздно");
 }
 
+// Отказ роутера держится, пока сеть не сменят, — и не должен превращаться в
+// непрерывный перебор попыток: каждая занимает эфир и мешает точке доступа.
+void test_refused_network_does_not_spin() {
+    FakeWifi w;
+    w.routerUp = false;
+    w.refusedNew = true;  // пароль не подошёл, и это не меняется
+    w.start();
+    w.run(10 * MIN, SEC);
+
+    int attempts = w.count(WifiAction::ConnectFast) + w.count(WifiAction::ConnectScan);
+    TEST_ASSERT_TRUE_MESSAGE(attempts > 0, "перестали пробовать совсем");
+    // Попытка (20 с) плюс пауза при поднятой точке доступа (60 с) — около 7 за
+    // десять минут; с запасом на случай правки констант
+    TEST_ASSERT_TRUE_MESSAGE(attempts <= 12, "подключение повторяется слишком часто");
+}
+
 // А вот у сети, которая уже работала, разрыв — обычное дело (роутер
 // перезагрузился), и точку раньше срока поднимать не надо.
 void test_working_network_does_not_raise_ap_early() {
@@ -309,6 +325,7 @@ int main() {
     RUN_TEST(test_radio_restart_is_followed_by_a_connect_attempt);
     RUN_TEST(test_ap_comes_up_after_two_minutes_without_router);
     RUN_TEST(test_refused_new_network_raises_ap_at_once);
+    RUN_TEST(test_refused_network_does_not_spin);
     RUN_TEST(test_working_network_does_not_raise_ap_early);
     RUN_TEST(test_ap_goes_down_when_router_returns);
     RUN_TEST(test_ap_stays_up_while_a_client_is_connected);

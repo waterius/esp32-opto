@@ -196,6 +196,15 @@ void begin(const core::Settings& s) {
     // а время — это метка показаний, уходящая в облако
     configTime(0, 0, "ru.pool.ntp.org", "pool.ntp.org");
 
+    // Переподключением занимается политика: два механизма мешали бы друг другу,
+    // а автореконнект SDK умеет молча сдаваться. Ставится до всех ветвлений:
+    // флаг статический и общий, а на чистом устройстве (сеть ещё не задана) мы
+    // выходим из begin() раньше — и SDK оставался бы с умолчанием true. Тогда
+    // на каждый отказ роутера срабатывал бы его собственный реконнект
+    // (WiFiGeneric.cpp: `WiFi.getAutoReconnect() && _isReconnectableReason`),
+    // и подключение повторялось бы каждые пару секунд поверх нашей лестницы.
+    WiFi.setAutoReconnect(false);
+
     applyPolicyConfig(s);
     policy.reset(millis());
     hasSsid_ = s.ssid[0] != 0;
@@ -203,9 +212,6 @@ void begin(const core::Settings& s) {
 
     WiFi.mode(WIFI_STA);
     WiFi.setSleep(false);  // устройство всегда в сети
-    // Переподключением занимается политика: два механизма мешали бы друг другу,
-    // а автореконнект SDK умеет молча сдаваться
-    WiFi.setAutoReconnect(false);
 }
 
 void loop(const core::Settings& s) {
