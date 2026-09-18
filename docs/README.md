@@ -8,6 +8,7 @@
 | [04-firmware.md](04-firmware.md) | ESPHome и Arduino: минимальный опрос счётчика |
 | [05-alternatives.md](05-alternatives.md) | ESP32-S3 без пайки, вариант через RSTb, своя ИК-часть на плате |
 | [06-nartis-100-exchange.md](06-nartis-100-exchange.md) | Дамп обмена с НАРТИС-100.121RL по оптопорту: кадры HDLC/COSEM, объекты, выводы для прошивки |
+| [07-flash-via-head-usb.md](07-flash-via-head-usb.md) | Прошивка ESP32-C3 через USB-вилку головки: три разреза, шесть проводов, проверки |
 | [sources.md](sources.md) | Источники |
 
 ## Уровни достоверности
@@ -25,3 +26,5 @@
 1. SoftwareSerial не нужен: у ESP32-C6 два аппаратных UART + LP UART, пины назначаются через GPIO Matrix.
 2. К USB D+/D− головки подключиться нельзя: USB у C6 — только устройство (Serial/JTAG), хоста нет.
 3. Доработка головки: 1 разрез дорожки TXD + 4 провода (5V, GND, TX, RX).
+4. Зато наоборот — можно: линии D+/D− кабеля головки уводятся на USB-пины
+   ESP32, и плата прошивается через ту же вилку USB-A ([07](07-flash-via-head-usb.md)).
