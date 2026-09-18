@@ -10,6 +10,8 @@
 
 **Spec:** `docs/superpowers/specs/2026-09-17-esp32-opto-firmware-design.md`
 
+**Состояние:** план выполнен, код лежит в `main`. Все файлы и правки здесь соответствуют ветке `main` на коммите `c20e9b7` и включают исправления, найденные при ревью: прерывание опроса прозрачной сессией, распознавание отказа в пароле, статус Wi-Fi при обрыве, атомарный снимок параметров порта, стек сервера RFC 2217, проверка контрольной суммы в OTA.
+
 ## Global Constraints
 
 - `platform = espressif32@6.12.0`, `framework = arduino`, `board_build.filesystem = littlefs`.
@@ -22,7 +24,7 @@
 - Юнит-тесты — только у протокола обмена со счётчиком (спека, раздел 12): `~/.platformio/penv/bin/pio test -e native`, папка `test/test_nartis`. В задаче 1 они не собираются (старый адаптер удалён), с задачи 2 обязательны. Каждая задача проверяется сборкой обеих плат командой `~/.platformio/penv/bin/pio run -e esp32-s3 -e esp32-c3`: код возврата 0, оба env `SUCCESS`. **После `pio` в конвейере не ставить `grep`/`tail`** — код возврата будет от них. Шаги «на железе» выполняет владелец устройства.
 - Комментарии, логи, интерфейс и сообщения коммитов — на русском; коммиты — conventional commits.
 - Весь вывод — через `Log` из `src/port/log.h` (`Log.printf`, `Log.println`), не через `Serial`: иначе сообщение не попадёт на страницу лога. `Log` можно звать из любой задачи. Каждая строка лога начинается с `[секунды.мс] `; в ожидаемом выводе задач 2–7 эта метка опущена.
-- Код во всех задачах уже собран по стадиям при подготовке плана (обе платы, код возврата 0): копировать как есть.
+- Код во всех задачах собран по стадиям и прогнан тестами, а затем приведён к тому, что получилось после ревью и лежит в `main`: копировать как есть.
 
 ## Отступления от спеки
 
@@ -559,7 +561,7 @@ void OptoEsp32::flushInput() {
 ```cpp
 // Порт: единственный владелец оптопорта (UART1) — арбитр опроса и прозрачной сессии.
 // Все байты, прошедшие через шину, пишутся в лог строками TX/RX в hex.
-// Все методы, кроме requestPreempt(), вызываются только из loop().
+// Все методы, кроме requestPreempt() и snapshot(), вызываются только из loop().
 #pragma once
 #include <atomic>
 
@@ -579,8 +581,14 @@ class OptoBus : public core::IOptoPort {
     void flushInput() override;
     bool abortRequested() override { return preempt_.load(); }
 
+    // Только из loop() — как и остальные не-атомарные методы выше.
     const core::SerialCfg& current() const;
     BusOwner owner() const { return owner_; }
+
+    // Снимок параметров порта, упакованный в одно атомарное слово (см. .cpp):
+    // безопасен для вызова из чужих задач, пока configure() пишет current()
+    // из loop(). Возвращает распакованную копию, а не ссылку на текущую cfg.
+    core::SerialCfg snapshot() const;
 
     // Опрос счётчика: взять шину, только если она свободна и никто не ждёт.
     bool acquireForMeter();
@@ -597,6 +605,10 @@ class OptoBus : public core::IOptoPort {
    private:
     BusOwner owner_ = BusOwner::Free;
     std::atomic<bool> preempt_{false};
+    std::atomic<uint32_t> snapshot_{0};  // упакованный current(), см. pack()/unpack()
+
+    static uint32_t pack(const core::SerialCfg& cfg);
+    static core::SerialCfg unpack(uint32_t v);
 };
 
 extern OptoBus bus;
@@ -638,13 +650,17 @@ void flushRx() {
 
 }  // namespace
 
-void OptoBus::begin(const core::SerialCfg& cfg) { uart.begin(cfg); }
+void OptoBus::begin(const core::SerialCfg& cfg) {
+    uart.begin(cfg);
+    snapshot_.store(pack(cfg));
+}
 
 void OptoBus::configure(const core::SerialCfg& cfg) {
     flushRx();
     if (!(cfg == uart.current()))
         Log.printf("Оптопорт: %lu %u%c%u\n", (unsigned long)cfg.baud, cfg.bits, cfg.parity, cfg.stop);
     uart.configure(cfg);
+    snapshot_.store(pack(cfg));
 }
 
 size_t OptoBus::write(const uint8_t* data, size_t len) {
@@ -674,6 +690,29 @@ void OptoBus::flushInput() {
 }
 
 const core::SerialCfg& OptoBus::current() const { return uart.current(); }
+
+// Упаковка cfg в одно 32-битное слово — читается/пишется атомарно одной
+// инструкцией, поэтому snapshot() не гонится с configure() из другой задачи.
+// Скорость (до 115200) — биты 0-23, биты данных (5-8, храним как bits-5) —
+// 24-25, чётность (N=0,E=1,O=2) — 26-27, стоп-биты (1→0, 2→1) — бит 28.
+uint32_t OptoBus::pack(const core::SerialCfg& cfg) {
+    uint32_t bits = (cfg.bits >= 5 && cfg.bits <= 8) ? (uint32_t)(cfg.bits - 5) : 0;
+    uint32_t parity = cfg.parity == 'E' ? 1u : (cfg.parity == 'O' ? 2u : 0u);
+    uint32_t stop = cfg.stop == 2 ? 1u : 0u;
+    return (cfg.baud & 0xFFFFFFu) | (bits << 24) | (parity << 26) | (stop << 28);
+}
+
+core::SerialCfg OptoBus::unpack(uint32_t v) {
+    core::SerialCfg cfg;
+    cfg.baud = v & 0xFFFFFFu;
+    cfg.bits = (uint8_t)(((v >> 24) & 0x3u) + 5);
+    uint32_t parity = (v >> 26) & 0x3u;
+    cfg.parity = parity == 1 ? 'E' : (parity == 2 ? 'O' : 'N');
+    cfg.stop = ((v >> 28) & 0x1u) ? 2 : 1;
+    return cfg;
+}
+
+core::SerialCfg OptoBus::snapshot() const { return unpack(snapshot_.load()); }
 
 bool OptoBus::acquireForMeter() {
     if (owner_ != BusOwner::Free || preempt_.load()) return false;
@@ -1020,7 +1059,7 @@ git commit -m "feat: фундамент прошивки — библиотек�
 **Files:**
 - Create: `src/core/nartis.h`, `src/core/nartis.cpp`
 - Modify (заменить целиком): `src/main.cpp`
-- Modify: `test/test_nartis/meter_emulator.h` (3 правки), `test/test_nartis/test_main.cpp` (4 правки)
+- Modify: `test/test_nartis/meter_emulator.h` (8 правок), `test/test_nartis/test_main.cpp` (7 правок)
 - Test: `test/test_nartis` — `~/.platformio/penv/bin/pio test -e native`
 
 **Interfaces:**
@@ -1198,6 +1237,14 @@ class Session {
     }
 
     int sendAndReceive(gxByteBuffer* data, gxReplyData* reply) {
+        // Проверка до передачи, а не только в readFrame(): иначе прерывание,
+        // подошедшее между вызовами (например, в середине группы readString/
+        // readClock), не остановит ни один следующий кадр — write() у порта
+        // ничего не знает про preempt_.
+        if (port_.abortRequested()) {
+            aborted_ = true;
+            return DLMS_ERROR_CODE_RECEIVE_FAILED;
+        }
         reply->complete = 0;
         bb_empty(&frame_);
         port_.flushInput();
@@ -1383,10 +1430,12 @@ ReadResult NartisMeter::read(MeterData& out, char* error, size_t errorCap) {
                 out.tariff[t - 1] = v;
                 out.tariffCount = t;
             }
-            readString(s, "0.0.96.1.0.255", out.serial, sizeof(out.serial));
-            readString(s, "0.0.96.1.1.255", out.model, sizeof(out.model));
-            readString(s, "0.0.96.1.2.255", out.fwVersion, sizeof(out.fwVersion));
-            readClock(s, out.time, sizeof(out.time));
+            if (!s.aborted()) {  // сессию забрала прозрачная — лишние кадры не шлём
+                readString(s, "0.0.96.1.0.255", out.serial, sizeof(out.serial));
+                readString(s, "0.0.96.1.1.255", out.model, sizeof(out.model));
+                readString(s, "0.0.96.1.2.255", out.fwVersion, sizeof(out.fwVersion));
+                readClock(s, out.time, sizeof(out.time));
+            }
         }
         if (s.aborted()) return ReadResult::Aborted;  // порт уже у клиента — DISC не шлём
         s.close();
@@ -1481,7 +1530,7 @@ Expected: код возврата 0, оба env `SUCCESS`.
 
 - [ ] **Шаг 5: Тесты под новый адаптер**
 
-Тесты проверяют адаптер снаружи, через байты оптопорта, поэтому меняется только обвязка. Заглушка реального обмена пересобирает ответ счётчика с номерами кадров под запрос: данные в дампе настоящие, а порядок чтения у прошивки не такой, как у скрипта, и номера не совпадают.
+Тесты проверяют адаптер снаружи, через байты оптопорта, поэтому обвязка меняется, а ожидания — нет. Заглушка реального обмена пересобирает ответ счётчика с номерами кадров под запрос: данные в дампе настоящие, а порядок чтения у прошивки не такой, как у скрипта, и номера не совпадают. Плюс два новых теста на прерывание опроса прозрачной сессией: эмулятор умеет взводить флаг прерывания после N ответов, и тесты проверяют, что после этого счётчик не получает ни одного нового запроса — ни в цикле по тарифам, ни в середине чтения строк и часов.
 
 Правка 1 в `test/test_nartis/meter_emulator.h` — найти:
 
@@ -1499,29 +1548,60 @@ Expected: код возврата 0, оба env `SUCCESS`.
 Правка 2 в `test/test_nartis/meter_emulator.h` — найти:
 
 ```
+    int corruptFrames = 0;         // сколько ближайших ответов испортить (FCS)
+```
+
+заменить на:
+
+```
+    int corruptFrames = 0;         // сколько ближайших ответов испортить (FCS)
+    int abortAfterGets = -1;       // после скольких GET считать порт забранным прозрачной сессией (-1 — никогда)
+```
+
+Правка 3 в `test/test_nartis/meter_emulator.h` — найти:
+
+```
+    void remove(uint16_t cls, const char* obis, uint8_t attr) { objects_.erase(key(cls, obis, attr)); }
+```
+
+заменить на:
+
+```
+    void remove(uint16_t cls, const char* obis, uint8_t attr) { objects_.erase(key(cls, obis, attr)); }
+
+    // Имитация прозрачной сессии RFC 2217, забравшей порт после abortAfterGets GET-ов.
+    bool abortRequested() override { return abortAfterGets >= 0 && gets >= abortAfterGets; }
+```
+
+Правка 4 в `test/test_nartis/meter_emulator.h` — найти:
+
+```
 // Воспроизводит реальный обмен: на запрос отвечает кадром, который прислал
-// настоящий счётчик на такой же запрос. Кадры без данных (SNRM, DISC) должны
-// совпасть целиком, I-кадры — по данным (LLC + PDU): номера последовательности
-// в прошивке другие, потому что порядок чтения не как в скрипте.
 ```
 
 заменить на:
 
 ```
 // Воспроизводит реальный обмен: на запрос отвечает данными, которые прислал
-// настоящий счётчик на такой же запрос. Кадры без данных (SNRM, DISC) должны
-// совпасть целиком, I-кадры — по данным (LLC + PDU): номера последовательности
+```
+
+Правка 5 в `test/test_nartis/meter_emulator.h` — найти:
+
+```
+// в прошивке другие, потому что порядок чтения не как в скрипте.
+```
+
+заменить на:
+
+```
 // в прошивке другие, потому что порядок чтения не как в скрипте. Ответ поэтому
 // собирается заново, с номерами под запрос.
 ```
 
-Правка 3 в `test/test_nartis/meter_emulator.h` — найти:
+Правка 6 в `test/test_nartis/meter_emulator.h` — найти:
 
 ```
             if (same) {
-                send(hex(e.response));
-                return;
-            }
 ```
 
 заменить на:
@@ -1530,19 +1610,58 @@ Expected: код возврата 0, оба env `SUCCESS`.
             if (!same) continue;
             Frame resp = parseFrame(hex(e.response));
             if (f.info.empty()) {  // SNRM, DISC — ответ как есть
+```
+
+Правка 7 в `test/test_nartis/meter_emulator.h` — найти:
+
+```
+                send(hex(e.response));
+                return;
+            }
+```
+
+заменить на:
+
+```
                 send(hex(e.response));
             } else {
                 uint8_t ns = (uint8_t)((f.control >> 1) & 7);
                 uint8_t control = (uint8_t)((((ns + 1) & 7) << 5) | 0x10 | (ns << 1));
                 send(serverFrame(f.dst[1] >> 1, control, resp.info, false));
             }
+```
+
+Правка 8 в `test/test_nartis/meter_emulator.h` — найти:
+
+```
+            }
+        }
+```
+
+заменить на:
+
+```
+            }
             return;
+        }
 ```
 
 Правка 1 в `test/test_nartis/test_main.cpp` — найти:
 
 ```
-struct Reading {
+// переживут замену своего клиента DLMS на Gurux: поменяется только readMeter().
+```
+
+заменить на:
+
+```
+// пережили замену своего клиента DLMS на Gurux: поменялся только readMeter(),
+// и при следующей смене реализации будет так же.
+```
+
+Правка 2 в `test/test_nartis/test_main.cpp` — найти:
+
+```
     bool ok = false;
     core::MeterData data;
 ```
@@ -1550,13 +1669,12 @@ struct Reading {
 заменить на:
 
 ```
-struct Reading {
     bool ok = false;
     core::ReadResult result = core::ReadResult::Failed;
     core::MeterData data;
 ```
 
-Правка 2 в `test/test_nartis/test_main.cpp` — найти:
+Правка 3 в `test/test_nartis/test_main.cpp` — найти:
 
 ```
     r.ok = meter.read(r.data);
@@ -1570,44 +1688,99 @@ struct Reading {
     r.ok = r.result == core::ReadResult::Ok;
 ```
 
-Правка 3 в `test/test_nartis/test_main.cpp` — найти:
-
-```
-    TEST_ASSERT_EQUAL(0, meter.gets);
-    TEST_ASSERT_TRUE(strlen(r.error) > 0);
-```
-
-заменить на:
-
-```
-    TEST_ASSERT_EQUAL(0, meter.gets);
-    TEST_ASSERT_TRUE(r.result == core::ReadResult::AuthRejected);
-    TEST_ASSERT_TRUE(strlen(r.error) > 0);
-```
-
 Правка 4 в `test/test_nartis/test_main.cpp` — найти:
 
 ```
-    meter.password = "12345";
-    Reading r = readMeter(meter);
-    TEST_ASSERT_FALSE(r.ok);
-    TEST_ASSERT_EQUAL(1, meter.aarqs);
-}
 
-void test_silent_meter
+// --- Адрес и пароль --------------------------------------------------------
 ```
 
 заменить на:
 
 ```
-    meter.password = "12345";
+
+// --- Арбитраж шины ----------------------------------------------------------
+
+// Прозрачная сессия RFC 2217 забрала порт посреди опроса (после суммы и
+// первого тарифа): чтение обязано остановиться сразу, без дополнительных
+// кадров на строки и время — иначе они уходят в оптопорт мимо арбитра.
+void test_abort_stops_further_reads() {
+    MeterEmulator meter;
+    meter.abortAfterGets = 4;  // сумма (2 GET) + T1 (2 GET) — дальше порт забран
+    Reading r = readMeter(meter);
+    TEST_ASSERT_TRUE(r.result == core::ReadResult::Aborted);
+    TEST_ASSERT_EQUAL(4, meter.gets);            // ни одного лишнего запроса после прерывания
+    TEST_ASSERT_EQUAL(6, meter.frames.size());   // SNRM + AARQ + 4 GET, без DISC
+    TEST_ASSERT_EQUAL(0, meter.discs);           // порт уже не у нас — DISC не шлём
+}
+
+// Прерывание пришло не до группы readString/readClock, а внутри неё — во
+// время чтения серийного номера (первый вызов группы). Оставшиеся три вызова
+// (модель, версия ПО, время) не должны отправить ни кадра: их останавливает
+// проверка в Session::sendAndReceive, а не групповой if (!s.aborted()), у
+// которого нет шанса сработать между вызовами внутри уже открытого блока.
+void test_abort_inside_group_stops_remaining_calls() {
+    MeterEmulator meter;
+    meter.abortAfterGets = 11;  // сумма + T1..T4 (10 GET) + серийный номер (11-й)
+    Reading r = readMeter(meter);
+    TEST_ASSERT_TRUE(r.result == core::ReadResult::Aborted);
+    TEST_ASSERT_EQUAL(11, meter.gets);           // модель/ПО/время запросов не отправляли
+    TEST_ASSERT_EQUAL(13, meter.frames.size());  // SNRM+AARQ+10 GET(энергия)+1 GET(серийный)
+    TEST_ASSERT_EQUAL(0, meter.discs);
+    TEST_ASSERT_EQUAL_STRING("", r.data.serial);  // ответ был готов, но принят не был
+}
+
+// --- Адрес и пароль --------------------------------------------------------
+```
+
+Правка 5 в `test/test_nartis/test_main.cpp` — найти:
+
+```
+    TEST_ASSERT_EQUAL(0, meter.gets);
+    TEST_ASSERT_TRUE(strlen(r.error) > 0);
+```
+
+заменить на:
+
+```
+    TEST_ASSERT_EQUAL(0, meter.gets);
+    TEST_ASSERT_TRUE(r.result == core::ReadResult::AuthRejected);
+    TEST_ASSERT_TRUE(strlen(r.error) > 0);
+```
+
+Правка 6 в `test/test_nartis/test_main.cpp` — найти:
+
+```
+    Reading r = readMeter(meter);
+    TEST_ASSERT_FALSE(r.ok);
+    TEST_ASSERT_EQUAL(1, meter.aarqs);
+}
+```
+
+заменить на:
+
+```
     Reading r = readMeter(meter);
     TEST_ASSERT_FALSE(r.ok);
     TEST_ASSERT_TRUE(r.result == core::ReadResult::AuthRejected);
     TEST_ASSERT_EQUAL(1, meter.aarqs);
 }
+```
 
-void test_silent_meter
+Правка 7 в `test/test_nartis/test_main.cpp` — найти:
+
+```
+    RUN_TEST(test_corrupted_fcs_is_not_accepted);
+    RUN_TEST(test_address_probe_16_then_17);
+```
+
+заменить на:
+
+```
+    RUN_TEST(test_corrupted_fcs_is_not_accepted);
+    RUN_TEST(test_abort_stops_further_reads);
+    RUN_TEST(test_abort_inside_group_stops_remaining_calls);
+    RUN_TEST(test_address_probe_16_then_17);
 ```
 
 - [ ] **Шаг 6: Прогон тестов**
@@ -1804,6 +1977,7 @@ void loop(const core::Settings& s) {
     if (wasConnected) {
         wasConnected = false;
         lostSinceMs = now;
+        status_ = Status::Failed;  // иначе /api/wifi_status ещё до AP_AFTER_MS отвечает «подключено»
         Log.println("Wi-Fi: связь с роутером потеряна");
     }
     if (status_ == Status::Connecting && now - connectStartMs >= CONNECT_TIMEOUT_MS) status_ = Status::Failed;
@@ -1867,9 +2041,11 @@ int postJson(const core::Settings& s, const char* path, const char* body, String
     if (url.endsWith("/")) url.remove(url.length() - 1);
     url += path;
 
+    // plain объявлен раньше http, чтобы на выходе из функции уничтожался позже —
+    // иначе на ветке раннего выхода деструктор HTTPClient трогал бы уже мёртвый WiFiClient.
+    WiFiClient plain;
     HTTPClient http;
     http.setTimeout(HTTP_TIMEOUT_MS);
-    WiFiClient plain;
     bool ok = url.startsWith("https://") ? http.begin(tls, url) : http.begin(plain, url);
     if (!ok) return -2;
 
@@ -2143,7 +2319,11 @@ AsyncWebServer server(80);
 // Текст лога после позиции from; страница log.html опрашивает раз в секунду.
 void getLog(AsyncWebServerRequest* request) {
     uint32_t from = request->hasParam("from") ? strtoul(request->getParam("from")->value().c_str(), nullptr, 10) : 0;
-    std::unique_ptr<char[]> text(new char[LogSink::SIZE + 1]);
+    std::unique_ptr<char[]> text(new (std::nothrow) char[LogSink::SIZE + 1]);
+    if (!text) {
+        request->send(503, "text/plain", "не хватило памяти");
+        return;
+    }
     size_t len = 0;
     bool skipped = false;
     uint32_t next = Log.read(from, text.get(), LogSink::SIZE, len, skipped);
@@ -2647,7 +2827,8 @@ git commit -m "feat: Wi-Fi-супервизор, веб-сервер и порт
   - API: `GET /api/status` → `{fw, ip, rssi, uptime_s, heap, wifi_mode, meter_enabled, meter_reading, meter_error, has_reading, read_at, serial, model, meter_fw, meter_time, total, tariffs[], cloud_at, cloud_code, cloud_error, cloud_next_s}`; `GET /api/settings` → `{baud, bits, parity, stop, meter_enabled, meter_addr, meter_pwd, period_min, host, key, email, rfc_enabled, rfc_port}`; `POST /api/settings` (те же поля формой, чекбоксы `1`/`0`) → `{"ok":true,"reboot":bool}` или `{"errors":{…}}`; `POST /api/read`, `POST /api/send`, `POST /api/reboot` → `{"ok":true}`.
 
 Поведение автомата (спека, раздел 3):
-- «Прочитать сейчас» — только чтение. «Отправить сейчас» и период — чтение, если опрос «в работе», затем отправка **последних успешно прочитанных** данных — даже если чтение не удалось, опрос выключен или порт занят прозрачной сессией.
+- «Прочитать сейчас» — только чтение. «Отправить сейчас» и период — чтение, если опрос «в работе», затем отправка **последних успешно прочитанных** данных — даже если чтение не удалось или опрос выключен.
+- Пока открыта прозрачная сессия, цикл откладывается целиком: отправка в облако заблокировала бы `loop()` на секунды и порвала сессию. Нажатие «Отправить сейчас» не теряется и срабатывает после её закрытия. Эту проверку добавляет задача 6, вместе с `rfc2217::active()`.
 - Ошибка чтения → повтор чтения через 5 минут без отправки. Ошибка отправки → повтор отправки через 5 минут.
 - `AuthRejected` → `meterEnabled = false`, сохраняется в NVS, причина в статусе.
 
@@ -3013,7 +3194,11 @@ void postSettings(AsyncWebServerRequest* request) {
 // Текст лога после позиции from; страница log.html опрашивает раз в секунду.
 void getLog(AsyncWebServerRequest* request) {
     uint32_t from = request->hasParam("from") ? strtoul(request->getParam("from")->value().c_str(), nullptr, 10) : 0;
-    std::unique_ptr<char[]> text(new char[LogSink::SIZE + 1]);
+    std::unique_ptr<char[]> text(new (std::nothrow) char[LogSink::SIZE + 1]);
+    if (!text) {
+        request->send(503, "text/plain", "не хватило памяти");
+        return;
+    }
     size_t len = 0;
     bool skipped = false;
     uint32_t next = Log.read(from, text.get(), LogSink::SIZE, len, skipped);
@@ -3069,7 +3254,7 @@ void loop() {}
 
 - [ ] **Шаг 3: `data/app.js` — вставить разделы статуса и настроек**
 
-Вставить перед строкой `/* ---------- Wi-Fi ---------- */`:
+Найти строку `/* ---------- Wi-Fi ---------- */` и заменить её на:
 
 ```js
 /* ---------- Статус ---------- */
@@ -3152,6 +3337,8 @@ function saveSettings(event, form) {
         showOk('saved', res.reboot ? 'Сохранено, устройство перезагружается…' : 'Сохранено');
     });
 }
+
+/* ---------- Wi-Fi ---------- */
 ```
 
 - [ ] **Шаг 4: Создать `data/index.html` и `data/settings.html`**
@@ -3430,11 +3617,15 @@ void applyPendingSettings() {
     next.channel = app.sett.channel;
 
     bool meterTurnedOn = next.meterEnabled && !app.sett.meterEnabled;
+    bool meterTurnedOff = !next.meterEnabled && app.sett.meterEnabled;
     bool reboot = next.rfcEnabled != app.sett.rfcEnabled || next.rfcPort != app.sett.rfcPort;
     app.sett = next;
     storage::saveSettings(app.sett);
     Log.println("Настройки сохранены");
     if (meterTurnedOn) poller::onMeterEnabled();
+    // Иначе после ручного выключения тумблера страница показывает старую причину
+    // ошибки (например, отказ пароля), хотя опрос выключен пользователем, не счётчиком.
+    if (meterTurnedOff) app.meterError[0] = 0;
     if (reboot) app.rebootNow.store(true);  // сервер RFC 2217 на ходу не перезапускается
 }
 
@@ -3510,7 +3701,7 @@ git commit -m "feat: опрос счётчика, отправка в облак
 
 **Files:**
 - Create: `lib/rfc2217-server/` (копия + `library.json` + `PATCHES.md` + патч), `src/port/rfc2217.h`, `src/port/rfc2217.cpp`
-- Modify: `src/port/web.cpp` (2 правки), `src/main.cpp` (заменить целиком)
+- Modify: `src/port/web.cpp` (3 правки), `src/main.cpp` (заменить целиком)
 
 **Interfaces:**
 - Consumes: `bus.requestPreempt/owner/beginTransparent/endTransparent/abortRequested/configure/current/read/write/available` (задача 1); `NartisMeter` прерывается через `abortRequested()` (задача 2); `app.sett.rfcEnabled/rfcPort` (задача 1).
@@ -3704,6 +3895,7 @@ bool active();  // клиент подключён и оптопорт у нег
 #include "rfc2217.h"
 
 #include <Arduino.h>
+#include <esp_pthread.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/stream_buffer.h>
 
@@ -3743,14 +3935,20 @@ void onData(void*, const uint8_t* data, size_t len) {
     xStreamBufferSend(fromClient, data, len, 0);  // не влезло — теряем, как переполненный UART
 }
 
+// Верхняя граница — как в списке допустимых скоростей на странице настроек
+// (BAUDS в web.cpp). opto_bus.pack() всё равно режет скорость до 24 бит —
+// без этой границы snapshot() мог бы показать не то, что запросил клиент.
+const uint32_t MAX_BAUD = 115200;
+
 // Значение 0 во всех SET-командах RFC 2217 — «сообщите текущее».
 unsigned onBaudrate(void*, unsigned requested) {
     if (requested) {
-        wantBaud.store(requested);
-        return requested;
+        uint32_t baud = requested > MAX_BAUD ? MAX_BAUD : requested;
+        wantBaud.store(baud);
+        return baud;
     }
     uint32_t w = wantBaud.load();
-    return w ? w : bus.current().baud;
+    return w ? w : bus.snapshot().baud;
 }
 
 unsigned onDatasize(void*, unsigned requested) {
@@ -3759,7 +3957,7 @@ unsigned onDatasize(void*, unsigned requested) {
         return requested;
     }
     uint8_t w = wantBits.load();
-    return w ? w : bus.current().bits;
+    return w ? w : bus.snapshot().bits;
 }
 
 // RFC 2217: 1 — нет, 2 — нечётность, 3 — чётность. MARK и SPACE не поддерживаем.
@@ -3770,7 +3968,7 @@ unsigned onParity(void*, unsigned requested) {
         return requested;
     }
     char c = wantParity.load();
-    if (!c) c = bus.current().parity;
+    if (!c) c = bus.snapshot().parity;
     return c == 'O' ? 2 : (c == 'E' ? 3 : 1);
 }
 
@@ -3781,13 +3979,17 @@ unsigned onStopsize(void*, unsigned requested) {
         return requested;
     }
     uint8_t w = wantStop.load();
-    return w ? w : bus.current().stop;
+    return w ? w : bus.snapshot().stop;
 }
 
 }  // namespace
 
 void begin(uint16_t port) {
     fromClient = xStreamBufferCreate(FROM_CLIENT_BUFFER, 1);
+    if (!fromClient) {
+        Log.println("RFC 2217: не выделен буфер приёма, сервер не запущен");
+        return;
+    }
     rfc2217_server_config_t cfg = {};
     cfg.on_client_connected = onConnected;
     cfg.on_client_disconnected = onDisconnected;
@@ -3797,10 +3999,23 @@ void begin(uint16_t port) {
     cfg.on_parity = onParity;
     cfg.on_stopsize = onStopsize;
     cfg.port = port;
-    cfg.task_stack_size = 4096;
-    cfg.task_priority = 5;
-    cfg.task_core_id = 0;
-    if (rfc2217_server_create(&cfg, &server) != 0 || rfc2217_server_start(server) != 0) {
+    // task_stack_size/task_priority/task_core_id библиотека не читает (создаёт
+    // поток через pthread_create с атрибутами по умолчанию) — стек задаём ниже
+    // через esp_pthread, здесь эти поля оставлять незачем.
+
+    // Стек pthread по умолчанию в arduino-esp32 — 2048 байт, этого мало и
+    // серверному потоку, и потоку приёма клиента, который он порождает из
+    // себя (буферы на стеке по 128-256 байт). inherit_cfg распространяет
+    // размер на этот дочерний поток тоже.
+    esp_pthread_cfg_t defaultCfg = esp_pthread_get_default_config();
+    esp_pthread_cfg_t pcfg = defaultCfg;
+    pcfg.stack_size = 4096;
+    pcfg.inherit_cfg = true;
+    esp_pthread_set_cfg(&pcfg);
+    bool failed = rfc2217_server_create(&cfg, &server) != 0 || rfc2217_server_start(server) != 0;
+    esp_pthread_set_cfg(&defaultCfg);  // на уже созданные потоки не влияет, возвращает cfg только этому
+
+    if (failed) {
         Log.println("RFC 2217: сервер не запустился");
         server = nullptr;
         return;
@@ -3860,6 +4075,7 @@ bool active() { return connected.load() && bus.owner() == BusOwner::Transparent;
 
 ```
 #include "net.h"
+#include "wifi_portal.h"
 ```
 
 заменить на:
@@ -3867,6 +4083,7 @@ bool active() { return connected.load() && bus.owner() == BusOwner::Transparent;
 ```
 #include "net.h"
 #include "rfc2217.h"
+#include "wifi_portal.h"
 ```
 
 Правка 2 в `src/port/web.cpp` — найти:
@@ -3915,11 +4132,15 @@ void applyPendingSettings() {
     next.channel = app.sett.channel;
 
     bool meterTurnedOn = next.meterEnabled && !app.sett.meterEnabled;
+    bool meterTurnedOff = !next.meterEnabled && app.sett.meterEnabled;
     bool reboot = next.rfcEnabled != app.sett.rfcEnabled || next.rfcPort != app.sett.rfcPort;
     app.sett = next;
     storage::saveSettings(app.sett);
     Log.println("Настройки сохранены");
     if (meterTurnedOn) poller::onMeterEnabled();
+    // Иначе после ручного выключения тумблера страница показывает старую причину
+    // ошибки (например, отказ пароля), хотя опрос выключен пользователем, не счётчиком.
+    if (meterTurnedOff) app.meterError[0] = 0;
     if (reboot) app.rebootNow.store(true);  // сервер RFC 2217 на ходу не перезапускается
 }
 
@@ -3991,7 +4212,7 @@ PY
 
 Expected:
 1. В логе устройства `RFC 2217: клиент подключился, опрос счётчика остановлен`; скрипт печатает кадр, начинающийся с `7e a0` и содержащий `73`; после закрытия — `RFC 2217: клиент отключился, порт свободен`.
-2. Пока скрипт держит соединение (добавить `time.sleep(30)` перед `close`): на `/` состояние «порт занят прозрачной сессией»; «Отправить сейчас» уходит в заглушку облака с прежним `meter_read_at`.
+2. Пока скрипт держит соединение (добавить `time.sleep(30)` перед `close`): на `/` состояние «порт занят прозрачной сессией». «Отправить сейчас» при этом откладывается до закрытия сессии — в задаче 6, когда появится проверка `rfc2217::active()`; на этом шаге отправка ещё уходит сразу.
 3. Нажать «Прочитать сейчас» и в течение секунды запустить скрипт → в логе `Счётчик: чтение прервано прозрачной сессией`, скрипт получает UA.
 4. Windows (по желанию): HW VSP3 → виртуальный COM на `192.168.x.y:2217` → Nartis Tools на этом COM читает счётчик.
 
@@ -4008,7 +4229,7 @@ git commit -m "feat: прозрачный serial по RFC 2217 на igrr/rfc2217
 
 **Files:**
 - Create: `src/port/ota_cloud.h`, `src/port/ota_cloud.cpp`
-- Modify: `src/poller.cpp` (3 правки), `src/port/web.cpp` (3 правки), `src/main.cpp` (заменить целиком)
+- Modify: `src/poller.cpp` (4 правки), `src/port/web.cpp` (2 правки), `src/main.cpp` (заменить целиком)
 
 **Interfaces:**
 - Consumes: `core::parseOta`, `core::OtaRequest`, `core::OtaError`, `storage::saveOtaError`, `app.otaError` (задача 1); `net::tlsClient()` (задача 3); `rfc2217::active()` (задача 5).
@@ -4052,9 +4273,11 @@ const uint32_t DOWNLOAD_TIMEOUT_MS = 15000;
 bool flash(const core::OtaImage& img, int command) {
     Log.printf("OTA: %s %s\n", command == U_SPIFFS ? "ФС" : "прошивка", img.url);
 
+    // plain объявлен раньше http, чтобы уничтожался позже — иначе на ветке
+    // раннего выхода деструктор HTTPClient трогал бы уже мёртвый WiFiClient.
+    WiFiClient plain;
     HTTPClient http;
     http.setTimeout(DOWNLOAD_TIMEOUT_MS);
-    WiFiClient plain;
     bool https = strncmp(img.url, "https://", 8) == 0;
     if (!(https ? http.begin(net::tlsClient(), img.url) : http.begin(plain, img.url))) return false;
 
@@ -4070,7 +4293,12 @@ bool flash(const core::OtaImage& img, int command) {
         http.end();
         return false;
     }
-    Update.setMD5(img.md5);
+    if (!Update.setMD5(img.md5)) {
+        Log.printf("OTA: контрольная сумма не принята: %s\n", img.md5);
+        Update.abort();
+        http.end();
+        return false;
+    }
     size_t written = Update.writeStream(*http.getStreamPtr());
     bool ok = written == (size_t)len && Update.end();
     if (!ok) {
@@ -4089,13 +4317,15 @@ uint8_t run(const core::OtaRequest& req) {
     Log.println("OTA: готово, перезагрузка");
     delay(300);
     ESP.restart();
-    return core::OTA_OK;
+    return core::OTA_OK;  // недостижимо: ESP.restart() не возвращается, но не объявлен noreturn
 }
 
 }  // namespace ota_cloud
 ```
 
-- [ ] **Шаг 2: `src/poller.cpp` — разбор блока `ota` после успешной отправки**
+- [ ] **Шаг 2: `src/poller.cpp` — разбор блока `ota`, отправка мимо прозрачной сессии**
+
+Заодно цикл отправки откладывается, пока открыта прозрачная сессия: запрос в облако блокирует `loop()` на секунды, за которые буферы сессии переполняются и байты теряются. Отложенная отправка не пропадает — флаг и таймеры не сбрасываются, и она уходит сразу после закрытия сессии (спека, раздел 3).
 
 Правка 1 в `src/poller.cpp` — найти:
 
@@ -4116,12 +4346,18 @@ uint8_t run(const core::OtaRequest& req) {
 Правка 2 в `src/poller.cpp` — найти:
 
 ```
-void sendCloud() {
+            break;
+    }
+}
 ```
 
 заменить на:
 
 ```
+            break;
+    }
+}
+
 // Блок ota в ответе облака — как в waterius main.cpp после send_data.
 void handleOta(const String& response) {
     core::OtaRequest req;
@@ -4139,8 +4375,6 @@ void handleOta(const String& response) {
     app.otaError = ota_cloud::run(req);  // при успехе перезагрузка и сюда не вернёмся
     storage::saveOtaError(app.otaError);
 }
-
-void sendCloud() {
 ```
 
 Правка 3 в `src/poller.cpp` — найти:
@@ -4158,6 +4392,27 @@ void sendCloud() {
     }
     handleOta(response);
 }
+```
+
+Правка 4 в `src/poller.cpp` — найти:
+
+```
+    }
+    // Выход на связь — всегда чтение, затем отправка последних прочитанных данных,
+```
+
+заменить на:
+
+```
+    }
+    // sendCloud() — блокирующий HTTPS-запрос до 12 секунд; пока он идёт, loop()
+    // не вызывает rfc2217::loop(), и байты прозрачной сессии теряются. Поэтому,
+    // как и с OTA, на время сессии цикл просто откладывается: periodStartMs и
+    // таймеры повтора не трогаем, sendNow/readRetry/sendRetry остаются взведены,
+    // и после закрытия сессии цикл сработает сам, при необходимости — сразу.
+    if (rfc2217::active()) return;
+
+    // Выход на связь — всегда чтение, затем отправка последних прочитанных данных,
 ```
 
 - [ ] **Шаг 3: `src/port/web.cpp` — ElegantOTA**
@@ -4238,11 +4493,15 @@ void applyPendingSettings() {
     next.channel = app.sett.channel;
 
     bool meterTurnedOn = next.meterEnabled && !app.sett.meterEnabled;
+    bool meterTurnedOff = !next.meterEnabled && app.sett.meterEnabled;
     bool reboot = next.rfcEnabled != app.sett.rfcEnabled || next.rfcPort != app.sett.rfcPort;
     app.sett = next;
     storage::saveSettings(app.sett);
     Log.println("Настройки сохранены");
     if (meterTurnedOn) poller::onMeterEnabled();
+    // Иначе после ручного выключения тумблера страница показывает старую причину
+    // ошибки (например, отказ пароля), хотя опрос выключен пользователем, не счётчиком.
+    if (meterTurnedOff) app.meterError[0] = 0;
     if (reboot) app.rebootNow.store(true);  // сервер RFC 2217 на ходу не перезапускается
 }
 
@@ -4375,11 +4634,15 @@ void applyPendingSettings() {
     next.channel = app.sett.channel;
 
     bool meterTurnedOn = next.meterEnabled && !app.sett.meterEnabled;
+    bool meterTurnedOff = !next.meterEnabled && app.sett.meterEnabled;
     bool reboot = next.rfcEnabled != app.sett.rfcEnabled || next.rfcPort != app.sett.rfcPort;
     app.sett = next;
     storage::saveSettings(app.sett);
     Log.println("Настройки сохранены");
     if (meterTurnedOn) poller::onMeterEnabled();
+    // Иначе после ручного выключения тумблера страница показывает старую причину
+    // ошибки (например, отказ пароля), хотя опрос выключен пользователем, не счётчиком.
+    if (meterTurnedOff) app.meterError[0] = 0;
     if (reboot) app.rebootNow.store(true);  // сервер RFC 2217 на ходу не перезапускается
 }
 
