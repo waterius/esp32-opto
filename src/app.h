@@ -31,11 +31,11 @@ struct AppState {
     };
 
     std::atomic<bool> meterReading{false};
-    char meterError[64] = "";  // пусто — последнее чтение без ошибок
+    char meterError[core::METER_ERROR_CAP] = "";  // пусто — последнее чтение без ошибок
 
     uint32_t cloudAt = 0;       // UTC epoch последней успешной отправки
     int cloudCode = 0;          // HTTP-код последней попытки; <0 — нет соединения; 0 — не отправляли
-    char cloudError[48] = "";   // пусто — последняя отправка успешна
+    char cloudError[64] = "";   // пусто — последняя отправка успешна
     uint8_t otaError = 0;       // код ошибки OTA через сервер, уходит полем ota_error
 
     // Запросы с веб-страниц: поток async_tcp → loop()

@@ -26,7 +26,7 @@ bool rebootWanted = false;
 bool hasSsid_ = false;
 bool everConnected = false;  // с текущими настройками сети хоть раз подключились
 bool safeMode_ = false;
-char error_[40] = "";        // причина отказа для страницы /wifi
+char error_[64] = "";        // причина отказа для страницы /wifi (кириллица — 2 байта на букву)
 
 // Пишет колбэк событий SDK (задача event loop), читает loop().
 std::atomic<bool> gotIp_{false};

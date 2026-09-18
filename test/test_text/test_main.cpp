@@ -8,6 +8,8 @@
 
 #include "core/text.h"
 
+using core::utf8Truncate;
+
 using core::utf8Trim;
 
 void setUp() {}
@@ -64,6 +66,33 @@ void test_progress_is_always_made() {
     TEST_ASSERT_EQUAL(strlen(s), utf8Trim(s, strlen(s)));
 }
 
+// --- обрезка на месте, как у сообщений об ошибках --------------------------
+
+void test_truncate_leaves_whole_string_alone() {
+    char buf[64] = "нет связи со счётчиком";
+    utf8Truncate(buf);
+    TEST_ASSERT_EQUAL_STRING("нет связи со счётчиком", buf);
+}
+
+void test_truncate_drops_a_half_letter() {
+    // Так выглядел буфер после snprintf: «д» в «код» разрублена пополам
+    char buf[64] = "нет связи (адрес 16, ко\xD0";
+    utf8Truncate(buf);
+    TEST_ASSERT_EQUAL_STRING_MESSAGE("нет связи (адрес 16, ко", buf, "половинка буквы осталась");
+}
+
+void test_truncate_of_empty_string() {
+    char buf[8] = "";
+    utf8Truncate(buf);
+    TEST_ASSERT_EQUAL_STRING("", buf);
+}
+
+void test_truncate_keeps_ascii_tail() {
+    char buf[32] = "код -1)";
+    utf8Truncate(buf);
+    TEST_ASSERT_EQUAL_STRING("код -1)", buf);
+}
+
 int main() {
     UNITY_BEGIN();
     RUN_TEST(test_ascii_is_never_trimmed);
@@ -73,5 +102,9 @@ int main() {
     RUN_TEST(test_cut_in_the_middle_of_a_word);
     RUN_TEST(test_three_and_four_byte_chars);
     RUN_TEST(test_progress_is_always_made);
+    RUN_TEST(test_truncate_leaves_whole_string_alone);
+    RUN_TEST(test_truncate_drops_a_half_letter);
+    RUN_TEST(test_truncate_of_empty_string);
+    RUN_TEST(test_truncate_keeps_ascii_tail);
     return UNITY_END();
 }

@@ -6,6 +6,7 @@
 #include "app.h"
 #include "core/cloud.h"
 #include "core/nartis.h"
+#include "core/text.h"
 #include "core/schedule.h"
 #include "port/log.h"
 #include "port/net.h"
@@ -94,6 +95,7 @@ void readMeter() {
         }
         case core::ReadResult::Failed:
             snprintf(app.meterError, sizeof(app.meterError), "%s", error);
+            core::utf8Truncate(app.meterError);
             readRetry = true;
             readRetryStartMs = millis();
             Log.printf("Счётчик: %s, повтор через 5 минут\n", error);
@@ -101,6 +103,7 @@ void readMeter() {
         case core::ReadResult::AuthRejected:
             // После 5 неверных паролей счётчик блокируется на сутки — опрос выключаем
             snprintf(app.meterError, sizeof(app.meterError), "%s", error);
+            core::utf8Truncate(app.meterError);
             app.sett.meterEnabled = false;
             storage::saveSettings(app.sett);
             Log.printf("Счётчик: %s, опрос выключен\n", error);

@@ -19,7 +19,7 @@ struct Reading {
     bool ok = false;
     core::ReadResult result = core::ReadResult::Failed;
     core::MeterData data;
-    char error[64] = {0};
+    char error[core::METER_ERROR_CAP] = {0};
     uint8_t addr = 0;
 };
 
@@ -226,6 +226,31 @@ void test_silent_meter() {
     TEST_ASSERT_TRUE(strlen(r.error) > 0);
 }
 
+// Текст ошибки идёт прямо на страницу статуса. Кириллица в UTF-8 — два байта
+// на букву, и сообщение с адресом и кодом в 64 байта не влезало: на странице
+// была «нет связи со счётчиком (адрес 16, ко» с разрубленной пополам буквой.
+void test_error_message_is_not_cut() {
+    MeterEmulator meter;
+    meter.silent = true;
+    Reading r = readMeter(meter);
+
+    TEST_ASSERT_TRUE_MESSAGE(utf8Complete(r.error), r.error);
+    TEST_ASSERT_TRUE_MESSAGE(strlen(r.error) > 0, "сообщения нет вовсе");
+    // Сообщение заканчивается кодом в скобках: оборванный текст скобку потеряет
+    TEST_ASSERT_EQUAL_MESSAGE(')', r.error[strlen(r.error) - 1], r.error);
+}
+
+void test_auth_rejected_message_is_not_cut() {
+    MeterEmulator meter;
+    meter.anyAddress = true;
+    meter.password = "12345";  // прошивка пойдёт с заводским 111 — счётчик откажет
+    Reading r = readMeter(meter);
+
+    TEST_ASSERT_TRUE(r.result == core::ReadResult::AuthRejected);
+    TEST_ASSERT_TRUE_MESSAGE(utf8Complete(r.error), r.error);
+    TEST_ASSERT_EQUAL_MESSAGE(')', r.error[strlen(r.error) - 1], r.error);
+}
+
 // --- Данные ----------------------------------------------------------------
 
 void test_tariffs_read_until_first_error() {
@@ -296,6 +321,8 @@ int main() {
     RUN_TEST(test_wrong_password_is_sent_once);
     RUN_TEST(test_wrong_password_is_not_retried_on_other_address);
     RUN_TEST(test_silent_meter);
+    RUN_TEST(test_error_message_is_not_cut);
+    RUN_TEST(test_auth_rejected_message_is_not_cut);
     RUN_TEST(test_tariffs_read_until_first_error);
     RUN_TEST(test_total_energy_is_required);
     RUN_TEST(test_energy_scaler_and_unit);

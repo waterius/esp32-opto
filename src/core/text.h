@@ -22,4 +22,12 @@ inline size_t utf8Trim(const char* text, size_t len) {
     return len;  // сплошные байты-продолжения: не наше дело их чинить
 }
 
+// Обрезать строку на месте по границе символа UTF-8. Для сообщений об ошибках,
+// которые собираются в буфер фиксированного размера и уходят прямо на страницу.
+inline void utf8Truncate(char* text) {
+    size_t len = 0;
+    while (text[len]) ++len;
+    text[utf8Trim(text, len)] = 0;
+}
+
 }  // namespace core
