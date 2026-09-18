@@ -194,6 +194,7 @@ void loop() {
         memcpy(app.sett.bssid, p.bssid, sizeof(app.sett.bssid));
         app.sett.channel = p.channel;
         storage::saveSettings(app.sett);
+        storage::saveFastConnect(app.sett);  // пара лежит отдельным ключом
         Log.printf("Wi-Fi: новая сеть %s\n", app.sett.ssid);
         net::reconnect(app.sett);
     }

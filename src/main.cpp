@@ -48,14 +48,23 @@ void applyPendingSettings() {
 }
 
 // Канал и BSSID роутера после подключения — для быстрого коннекта (как в waterius).
-void saveFastConnect() {
+// Обратная сторона: если роутер переехал, политика просит пару забыть, иначе
+// быстрый коннект будет промахиваться вечно.
+void syncFastConnect() {
+    if (net::takeForgetFastConnect()) {
+        Log.println("Wi-Fi: сохранённые канал и BSSID больше не находят сеть — забываем");
+        app.sett.channel = 0;
+        memset(app.sett.bssid, 0, sizeof(app.sett.bssid));
+        storage::saveFastConnect(app.sett);
+        return;
+    }
     uint8_t channel = 0;
     uint8_t bssid[6];
     if (!net::takeFastConnect(channel, bssid)) return;
     if (channel == app.sett.channel && memcmp(bssid, app.sett.bssid, sizeof(bssid)) == 0) return;
     app.sett.channel = channel;
     memcpy(app.sett.bssid, bssid, sizeof(bssid));
-    storage::saveSettings(app.sett);
+    storage::saveFastConnect(app.sett);
 }
 
 // ArduinoOTA — для pio run -t upload --upload-port <IP>. Стартует, когда появилась сеть.
@@ -110,7 +119,7 @@ void setup() {
 
 void loop() {
     net::loop(app.sett);
-    saveFastConnect();
+    syncFastConnect();
     wifi_portal::loop();
     web::loop();
     arduinoOta();
@@ -118,6 +127,7 @@ void loop() {
     applyPendingSettings();
     poller::loop();
     checkFactoryReset();
+    if (net::rebootRequested()) app.rebootNow.store(true);
     if (app.rebootNow.load()) {
         delay(300);
         ESP.restart();

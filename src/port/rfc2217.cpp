@@ -7,7 +7,9 @@
 
 #include <atomic>
 
+#include "../core/session_guard.h"
 #include "log.h"
+#include "net.h"
 #include "opto_bus.h"
 #include "rfc2217_server.h"
 
@@ -19,6 +21,17 @@ const size_t FROM_CLIENT_BUFFER = 1024;
 rfc2217_server_t server = nullptr;
 StreamBufferHandle_t fromClient = nullptr;  // клиент → UART: пишет поток сервера, читает loop()
 std::atomic<bool> connected{false};
+
+// Сторож сессии: пока она открыта, опрос счётчика и облако стоят, поэтому
+// «открыта навсегда» недопустимо. Считает loop(), решает ядро.
+core::SessionGuard guard;
+bool disconnectAsked = false;
+
+// Признаки жизни клиента из потоков сервера: данные и команды RFC 2217.
+// loop() сравнивает со своим прошлым значением — так телнет-переговоры без
+// единого байта данных тоже считаются активностью.
+std::atomic<uint32_t> activity{0};
+uint32_t seenActivity = 0;
 
 // Запрошенные клиентом параметры порта; 0 — не менялись. Применяет loop().
 std::atomic<uint32_t> wantBaud{0};
@@ -38,6 +51,7 @@ void onConnected(void*) {
 void onDisconnected(void*) { connected.store(false); }
 
 void onData(void*, const uint8_t* data, size_t len) {
+    activity.fetch_add(1);
     xStreamBufferSend(fromClient, data, len, 0);  // не влезло — теряем, как переполненный UART
 }
 
@@ -48,6 +62,7 @@ const uint32_t MAX_BAUD = 115200;
 
 // Значение 0 во всех SET-командах RFC 2217 — «сообщите текущее».
 unsigned onBaudrate(void*, unsigned requested) {
+    activity.fetch_add(1);
     if (requested) {
         uint32_t baud = requested > MAX_BAUD ? MAX_BAUD : requested;
         wantBaud.store(baud);
@@ -58,6 +73,7 @@ unsigned onBaudrate(void*, unsigned requested) {
 }
 
 unsigned onDatasize(void*, unsigned requested) {
+    activity.fetch_add(1);
     if (requested >= 5 && requested <= 8) {
         wantBits.store((uint8_t)requested);
         return requested;
@@ -68,6 +84,7 @@ unsigned onDatasize(void*, unsigned requested) {
 
 // RFC 2217: 1 — нет, 2 — нечётность, 3 — чётность. MARK и SPACE не поддерживаем.
 unsigned onParity(void*, unsigned requested) {
+    activity.fetch_add(1);
     char p = requested == 1 ? 'N' : (requested == 2 ? 'O' : (requested == 3 ? 'E' : 0));
     if (p) {
         wantParity.store(p);
@@ -80,6 +97,7 @@ unsigned onParity(void*, unsigned requested) {
 
 // RFC 2217: 1 — один стоп-бит, 2 — два. 1,5 не поддерживаем.
 unsigned onStopsize(void*, unsigned requested) {
+    activity.fetch_add(1);
     if (requested == 1 || requested == 2) {
         wantStop.store((uint8_t)requested);
         return requested;
@@ -131,18 +149,42 @@ void begin(uint16_t port) {
 
 void loop() {
     if (!server) return;
+    uint32_t now = millis();
 
     if (connected.load()) {
         if (bus.owner() != BusOwner::Transparent) {
             bus.beginTransparent();
+            guard.onOpen(now);
+            seenActivity = activity.load();
+            disconnectAsked = false;
             Log.println("RFC 2217: клиент подключился, опрос счётчика остановлен");
         }
     } else if (bus.owner() == BusOwner::Transparent || bus.abortRequested()) {
         bus.endTransparent();
+        guard.onClose();
+        disconnectAsked = false;
         xStreamBufferReset(fromClient);
         Log.println("RFC 2217: клиент отключился, порт свободен");
     }
     if (bus.owner() != BusOwner::Transparent) return;
+
+    uint32_t seen = activity.load();
+    if (seen != seenActivity) {
+        seenActivity = seen;
+        guard.onTraffic(now);
+    }
+
+    // Клиент мог исчезнуть, не закрыв сокет: ноутбук уснул, отвалился Wi-Fi,
+    // NAT забыл трансляцию. TCP об этом сам не узнает, а сессия держит
+    // оптопорт — и устройство перестаёт ходить в облако. Закрываем сами.
+    core::SessionVerdict verdict = guard.check(now, net::connected());
+    if (verdict != core::SessionVerdict::Keep && !disconnectAsked) {
+        disconnectAsked = true;
+        Log.printf("RFC 2217: закрываем сессию — %s\n",
+                   verdict == core::SessionVerdict::Idle ? "клиент молчит слишком долго"
+                                                         : "пропала сеть");
+        rfc2217_server_disconnect_client(server);
+    }
 
     // Параметры порта от клиента — до данных, пришедших после них
     core::SerialCfg cfg = bus.current();
@@ -167,8 +209,13 @@ void loop() {
         if (c < 0) break;
         buf[n++] = (uint8_t)c;
     }
-    if (n) rfc2217_server_send_data(server, buf, n);
+    if (n) {
+        guard.onTraffic(now);  // счётчик отвечает — сессия точно рабочая
+        rfc2217_server_send_data(server, buf, n);
+    }
 }
+
+uint32_t idleSeconds() { return guard.idleMs(millis()) / 1000; }
 
 bool active() { return connected.load() && bus.owner() == BusOwner::Transparent; }
 

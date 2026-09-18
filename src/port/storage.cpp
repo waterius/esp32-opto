@@ -2,6 +2,8 @@
 
 #include <Preferences.h>
 
+#include <string.h>
+
 namespace storage {
 namespace {
 
@@ -9,6 +11,13 @@ const char* NS = "opto";
 const char* KEY_SETTINGS = "settings";
 const char* KEY_READING = "reading";
 const char* KEY_OTA_ERROR = "ota_error";
+const char* KEY_FAST = "fast";
+
+// Пара для быстрого коннекта — отдельно от блоба настроек, см. storage.h
+struct StoredFastConnect {
+    uint8_t channel;
+    uint8_t bssid[6];
+};
 
 struct StoredReading {
     core::MeterData data;
@@ -40,9 +49,21 @@ void loadSettings(core::Settings& s) {
     } else {
         s = core::Settings();
     }
+    StoredFastConnect fast;
+    if (loadBlob(KEY_FAST, &fast, sizeof(fast))) {
+        s.channel = fast.channel;
+        memcpy(s.bssid, fast.bssid, sizeof(s.bssid));
+    }
 }
 
 void saveSettings(const core::Settings& s) { saveBlob(KEY_SETTINGS, &s, sizeof(s)); }
+
+void saveFastConnect(const core::Settings& s) {
+    StoredFastConnect fast;
+    fast.channel = s.channel;
+    memcpy(fast.bssid, s.bssid, sizeof(fast.bssid));
+    saveBlob(KEY_FAST, &fast, sizeof(fast));
+}
 
 bool loadLastReading(core::MeterData& m, uint32_t& readAt) {
     StoredReading r;

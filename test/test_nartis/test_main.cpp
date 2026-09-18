@@ -11,14 +11,8 @@
 #include <cstring>
 
 #include "core/nartis.h"
+#include "core_clock.h"
 #include "meter_emulator.h"
-
-// Время ядра: тесты не ждут настоящих таймаутов.
-static uint32_t fakeMs = 0;
-namespace core {
-uint32_t nowMs() { return ++fakeMs; }
-void sleepMs(uint32_t ms) { fakeMs += ms; }
-}  // namespace core
 
 // Результат одного опроса. Единственное место, где тесты вызывают адаптер.
 struct Reading {
@@ -40,7 +34,7 @@ static Reading readMeter(core::IOptoPort& port, uint8_t addr = 0, const char* pw
     return r;
 }
 
-void setUp() { fakeMs = 0; }
+void setUp() { testclock::reset(); }
 void tearDown() {}
 
 // Строка UTF-8 не оборвана посреди символа

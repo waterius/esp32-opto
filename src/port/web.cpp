@@ -77,6 +77,7 @@ void getSettings(AsyncWebServerRequest* request) {
     doc["email"] = s.email;
     doc["rfc_enabled"] = s.rfcEnabled;
     doc["rfc_port"] = s.rfcPort;
+    doc["reboot_min"] = s.rebootMin;
     sendJson(request, doc);
 }
 
@@ -146,6 +147,9 @@ void postSettings(AsyncWebServerRequest* request) {
 
     s.rfcEnabled = paramBool(request, "rfc_enabled");
     if (paramLong(request, "rfc_port", 1, 65535, v, errors, "Порт: от 1 до 65535")) s.rfcPort = (uint16_t)v;
+
+    if (paramLong(request, "reboot_min", 0, 1440, v, errors, "От 0 до 1440 минут; 0 — не перезагружаться"))
+        s.rebootMin = (uint16_t)v;
 
     if (errors.size()) {
         sendJson(request, doc);

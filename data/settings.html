@@ -69,6 +69,12 @@
         <input id="email" name="email" maxlength="63">
         <p class="error hd" id="email-error"></p>
 
+        <h2>Сеть</h2>
+        <label for="reboot_min">Перезагрузка без связи через, мин (0 — не перезагружаться)</label>
+        <input id="reboot_min" name="reboot_min" type="number" min="0" max="1440">
+        <p class="error hd" id="reboot_min-error"></p>
+        <p class="text">Стек Wi-Fi иногда залипает так, что помогает только перезагрузка. Пока кто-то настраивает устройство через его точку доступа, она не сработает.</p>
+
         <h2>Прозрачный serial (RFC 2217)</h2>
         <div class="chk">
             <input type="checkbox" id="rfc_enabled" name="rfc_enabled">

@@ -12,6 +12,11 @@ namespace storage {
 void loadSettings(core::Settings& s);
 void saveSettings(const core::Settings& s);
 
+// Канал и BSSID лежат отдельным ключом: они меняются при каждом роуминге, а
+// переписывать вместе с ними весь блоб настроек (пароль счётчика, ключ облака)
+// ради этого незачем. loadSettings() накладывает эту пару поверх блоба.
+void saveFastConnect(const core::Settings& s);
+
 // false — успешных чтений ещё не было. readAt — UTC epoch, 0 если время было неизвестно.
 bool loadLastReading(core::MeterData& m, uint32_t& readAt);
 void saveLastReading(const core::MeterData& m, uint32_t readAt);

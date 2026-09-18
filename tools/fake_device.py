@@ -84,7 +84,7 @@ SETTINGS = {
     'baud': 9600, 'bits': 8, 'parity': 'N', 'stop': 1,
     'meter_enabled': True, 'meter_addr': 0, 'meter_pwd': '111',
     'period_min': 60, 'host': 'http://127.0.0.1:8080', 'key': 'sim-key', 'email': '',
-    'rfc_enabled': True, 'rfc_port': 2217,
+    'rfc_enabled': True, 'rfc_port': 2217, 'reboot_min': 60,
 }
 
 # Что «увидит» прошивка при чтении. Меняется со страницы /sim.
@@ -345,6 +345,10 @@ def post_settings(form):
     port = num('rfc_port', 1, 65535, 'Порт: от 1 до 65535')
     if port is not None:
         s['rfc_port'] = port
+
+    reboot_min = num('reboot_min', 0, 1440, 'От 0 до 1440 минут; 0 — не перезагружаться')
+    if reboot_min is not None:
+        s['reboot_min'] = reboot_min
 
     if errors:
         return {'errors': errors}
