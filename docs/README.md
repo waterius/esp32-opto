@@ -9,6 +9,7 @@
 | [05-alternatives.md](05-alternatives.md) | ESP32-S3 без пайки, вариант через RSTb, своя ИК-часть на плате |
 | [06-nartis-100-exchange.md](06-nartis-100-exchange.md) | Дамп обмена с НАРТИС-100.121RL по оптопорту: кадры HDLC/COSEM, объекты, выводы для прошивки |
 | [07-flash-via-head-usb.md](07-flash-via-head-usb.md) | Прошивка платы через USB-вилку головки: три разреза, схемы подключения для C3 и S3 Super Mini, проверки |
+| [08-reliability.md](08-reliability.md) | Надёжность связи: лестница восстановления Wi-Fi, сторожа, усечённый режим, принятые риски |
 | [sources.md](sources.md) | Источники |
 
 ## Уровни достоверности
