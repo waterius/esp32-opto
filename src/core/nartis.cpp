@@ -1,8 +1,11 @@
 #include "nartis.h"
 
+#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+
+#include "text.h"
 
 #include "client.h"
 #include "cosem.h"
@@ -17,6 +20,19 @@ const uint32_t WAIT_MS = 2000;      // как в примере Gurux Arduino_ID
 const uint8_t RESEND_COUNT = 3;
 const unsigned char HDLC_FLAG = 0x7E;
 const unsigned char UNIT_WH = 30;
+
+// Текст ошибки уходит прямо на страницу статуса, поэтому обрывать его посреди
+// буквы нельзя: половинка кириллической буквы ломает там разбор. Длину буфера
+// задаёт core::METER_ERROR_CAP, но полагаться на неё одну мало — обрезаем по
+// границе символа в любом случае.
+void setError(char* error, size_t cap, const char* fmt, ...) {
+    if (!cap) return;
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(error, cap, fmt, args);
+    va_end(args);
+    utf8Truncate(error);
+}
 
 // Один сеанс со счётчиком: настройки Gurux и буфер приёма.
 // Порядок обмена — как в Arduino_IDE/client/client.ino из GuruxDLMS.c.
@@ -297,12 +313,12 @@ ReadResult NartisMeter::read(MeterData& out, char* error, size_t errorCap) {
         int ret = s.open();
         if (s.aborted()) return ReadResult::Aborted;
         if (s.refused()) {
-            snprintf(error, errorCap, "счётчик отверг пароль (адрес %u, код %d)", addr, ret);
+            setError(error, errorCap, "счётчик отверг пароль (адрес %u, код %d)", addr, ret);
             return ReadResult::AuthRejected;
         }
         if (ret != 0) {
             // На чужой адрес счётчик не отвечает — пробуем следующий
-            snprintf(error, errorCap, "нет связи со счётчиком (адрес %u, код %d)", addr, ret);
+            setError(error, errorCap, "нет связи со счётчиком (адрес %u, код %d)", addr, ret);
             continue;
         }
         found_ = addr;
@@ -325,7 +341,7 @@ ReadResult NartisMeter::read(MeterData& out, char* error, size_t errorCap) {
         if (s.aborted()) return ReadResult::Aborted;  // порт уже у клиента — DISC не шлём
         s.close();
         if (ret != 0) {
-            snprintf(error, errorCap, "ошибка чтения энергии (код %d)", ret);
+            setError(error, errorCap, "ошибка чтения энергии (код %d)", ret);
             return ReadResult::Failed;
         }
         return ReadResult::Ok;

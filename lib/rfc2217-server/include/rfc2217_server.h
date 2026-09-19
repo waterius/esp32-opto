@@ -138,6 +138,16 @@ int rfc2217_server_start(rfc2217_server_t server);
  */
 int rfc2217_server_send_data(rfc2217_server_t server, const uint8_t *data, size_t len);
 
+/** @brief Close the current client session (esp32-opto patch)
+ *
+ * Used by the firmware when the client went silent or the network is gone:
+ * a half-open TCP connection would otherwise hold the serial port forever.
+ *
+ * @param server RFC2217 server instance
+ * @return 0 on success, negative error code if there is no client
+ */
+int rfc2217_server_disconnect_client(rfc2217_server_t server);
+
 /** @brief Stop RFC2217 server
  *
  * @param server RFC2217 server instance

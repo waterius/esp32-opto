@@ -70,6 +70,9 @@ size_t buildCloudPayload(const MeterData& m, uint32_t readAt, const Settings& s,
     }
     doc["meter_read_at"] = readAtIso;
     doc["ota_error"] = dev.otaError;
+    doc["reset_reason"] = dev.resetReason;
+    doc["uptime"] = dev.uptimeS;
+    doc["wifi_drops"] = dev.wifiDisconnects;
     doc["chip_id"] = dev.chipId;
     doc["ip"] = dev.ip;
     doc["rssi"] = dev.rssi;

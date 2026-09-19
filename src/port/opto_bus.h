@@ -8,6 +8,9 @@
 
 enum class BusOwner : uint8_t { Free, Meter, Transparent };
 
+// Для строки состояния: латиницей, как и остальные её значения-признаки.
+const char* busOwnerName(BusOwner owner);
+
 class OptoBus : public core::IOptoPort {
    public:
     void begin(const core::SerialCfg& cfg);

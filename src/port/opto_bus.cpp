@@ -21,7 +21,7 @@ void logBytes(const char* dir, const uint8_t* data, size_t len) {
         size_t n = len - off < LINE ? len - off : LINE;
         int k = snprintf(line, sizeof(line), "%s", dir);
         for (size_t i = 0; i < n; ++i) k += snprintf(line + k, sizeof(line) - k, " %02x", data[off + i]);
-        Log.println(line);
+        Log.debug("%s\n", line);  // порог буфера по умолчанию debug: на странице лога они нужны
     }
 }
 
@@ -118,4 +118,13 @@ void OptoBus::endTransparent() {
     flushRx();
     owner_ = BusOwner::Free;
     preempt_.store(false);
+}
+
+const char* busOwnerName(BusOwner owner) {
+    switch (owner) {
+        case BusOwner::Free: return "free";
+        case BusOwner::Meter: return "meter";
+        case BusOwner::Transparent: return "transparent";
+    }
+    return "?";  // значение из будущей версии прошивки
 }

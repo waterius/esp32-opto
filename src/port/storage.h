@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 #include "../core/meter.h"
+#include "../core/restart_reason.h"
 #include "../core/settings.h"
 
 namespace storage {
@@ -11,6 +12,22 @@ namespace storage {
 // Нет записи, другой размер или версия — умолчания.
 void loadSettings(core::Settings& s);
 void saveSettings(const core::Settings& s);
+
+// Канал и BSSID лежат отдельным ключом: они меняются при каждом роуминге, а
+// переписывать вместе с ними весь блоб настроек (пароль счётчика, ключ облака)
+// ради этого незачем. loadSettings() накладывает эту пару поверх блоба.
+void saveFastConnect(const core::Settings& s);
+
+// Счётчик загрузок подряд без признака «загрузка удалась»: защита от кирпича
+// после неудачной прошивки (safe mode).
+uint8_t loadBootCount();
+void saveBootCount(uint8_t count);
+
+// Кто перезагрузил плату. Пишется из loop() перед самой перезагрузкой,
+// читается и сбрасывается на следующем старте. Сторож цикла сюда писать не
+// может — он работает, когда loop() уже не жив, и оставляет метку в RTC.
+core::RestartReason loadRestartReason();
+void saveRestartReason(core::RestartReason reason);
 
 // false — успешных чтений ещё не было. readAt — UTC epoch, 0 если время было неизвестно.
 bool loadLastReading(core::MeterData& m, uint32_t& readAt);

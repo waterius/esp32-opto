@@ -8,10 +8,13 @@
 #include <memory>
 
 #include "../app.h"
+#include "../core/text.h"
 #include "../poller.h"
 #include "log.h"
 #include "net.h"
 #include "rfc2217.h"
+#include "storage.h"
+#include "watchdog.h"
 #include "wifi_portal.h"
 
 namespace web {
@@ -20,6 +23,13 @@ namespace {
 AsyncWebServer server(80);
 
 const long BAUDS[] = {300, 600, 1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200};
+
+// Лог отдаётся кусками. Раньше на каждый запрос выделялись все 16 КБ буфера, да
+// ещё столько же уходило на сборку JSON — и так раз в секунду, в задаче
+// async_tcp с приоритетом выше loop(). Это ровно та фрагментация кучи, из-за
+// которой на C3 может не собраться TLS-сессия к облаку. Страница дочитает
+// остаток следующим запросом: позиция next для этого и есть.
+const size_t LOG_CHUNK = 4096;
 
 void sendJson(AsyncWebServerRequest* request, JsonDocument& doc) {
     String out;
@@ -37,21 +47,32 @@ void getStatus(AsyncWebServerRequest* request) {
     doc["uptime_s"] = millis() / 1000;
     doc["heap"] = ESP.getFreeHeap();
     doc["wifi_mode"] = net::modeName();
+    doc["safe_mode"] = app.safeMode;
+    doc["wifi_drops"] = net::disconnectCount();
+    doc["wifi_offline_s"] = net::offlineSeconds();
+    doc["link_alive"] = net::linkAlive();
+    doc["link_armed"] = net::linkGuardArmed();
+    doc["boot_reason"] = app.bootReason;
+    doc["watchdogs"] = watchdog::loopWatchdogArmed() && watchdog::rtcWatchdogArmed();
 
     doc["meter_enabled"] = app.sett.meterEnabled;
     doc["meter_reading"] = app.meterReading.load();
     doc["meter_error"] = app.meterError;
     doc["transparent"] = rfc2217::active();
+    doc["transparent_idle_s"] = rfc2217::idleSeconds();
 
-    doc["has_reading"] = app.hasReading;
-    doc["read_at"] = app.lastReadAt;
-    doc["serial"] = app.last.serial;
-    doc["model"] = app.last.model;
-    doc["meter_fw"] = app.last.fwVersion;
-    doc["meter_time"] = app.last.time;
-    doc["total"] = app.last.total;
+    core::MeterData last;
+    uint32_t readAt = 0;
+    bool hasReading = readReading(last, readAt);
+    doc["has_reading"] = hasReading;
+    doc["read_at"] = readAt;
+    doc["serial"] = last.serial;
+    doc["model"] = last.model;
+    doc["meter_fw"] = last.fwVersion;
+    doc["meter_time"] = last.time;
+    doc["total"] = last.total;
     JsonArray tariffs = doc["tariffs"].to<JsonArray>();
-    for (uint8_t i = 0; i < app.last.tariffCount && i < core::MAX_TARIFFS; ++i) tariffs.add(app.last.tariff[i]);
+    for (uint8_t i = 0; i < last.tariffCount && i < core::MAX_TARIFFS; ++i) tariffs.add(last.tariff[i]);
 
     doc["cloud_at"] = app.cloudAt;
     doc["cloud_code"] = app.cloudCode;
@@ -59,6 +80,9 @@ void getStatus(AsyncWebServerRequest* request) {
     doc["cloud_next_s"] = poller::secondsToNextSend();
     sendJson(request, doc);
 }
+
+// Пустая строка вместо 0.0.0.0: на странице это означает «адрес по DHCP».
+String ipText(uint32_t addr) { return addr ? IPAddress(addr).toString() : String(); }
 
 void getSettings(AsyncWebServerRequest* request) {
     const core::Settings& s = app.sett;
@@ -77,6 +101,11 @@ void getSettings(AsyncWebServerRequest* request) {
     doc["email"] = s.email;
     doc["rfc_enabled"] = s.rfcEnabled;
     doc["rfc_port"] = s.rfcPort;
+    doc["reboot_min"] = s.rebootMin;
+    doc["ip"] = ipText(s.ip);
+    doc["gateway"] = ipText(s.gateway);
+    doc["mask"] = ipText(s.mask);
+    doc["dns"] = ipText(s.dns);
     sendJson(request, doc);
 }
 
@@ -109,6 +138,22 @@ bool paramStr(AsyncWebServerRequest* request, const char* name, char* dst, size_
         return false;
     }
     snprintf(dst, cap, "%s", v.c_str());
+    return true;
+}
+
+// Адрес IPv4 или пусто. Пусто — 0, то есть DHCP.
+bool paramIp(AsyncWebServerRequest* request, const char* name, uint32_t& out, JsonObject errors) {
+    String v = param(request, name);
+    if (v.isEmpty()) {
+        out = 0;
+        return true;
+    }
+    IPAddress addr;
+    if (!addr.fromString(v)) {
+        errors[name] = "Адрес вида 192.168.1.10 или пусто";
+        return false;
+    }
+    out = (uint32_t)addr;
     return true;
 }
 
@@ -147,12 +192,22 @@ void postSettings(AsyncWebServerRequest* request) {
     s.rfcEnabled = paramBool(request, "rfc_enabled");
     if (paramLong(request, "rfc_port", 1, 65535, v, errors, "Порт: от 1 до 65535")) s.rfcPort = (uint16_t)v;
 
+    if (paramLong(request, "reboot_min", 0, 1440, v, errors, "От 0 до 1440 минут; 0 — не перезагружаться"))
+        s.rebootMin = (uint16_t)v;
+    bool ipOk = paramIp(request, "ip", s.ip, errors);
+    ipOk = paramIp(request, "gateway", s.gateway, errors) && ipOk;
+    ipOk = paramIp(request, "mask", s.mask, errors) && ipOk;
+    ipOk = paramIp(request, "dns", s.dns, errors) && ipOk;
+    // Половина статики хуже, чем её отсутствие: без шлюза и маски интерфейс не поднимется
+    if (ipOk && s.ip && (!s.gateway || !s.mask))
+        errors["ip"] = "Со статическим адресом нужны шлюз и маска";
+
     if (errors.size()) {
         sendJson(request, doc);
         return;
     }
 
-    bool reboot = s.rfcEnabled != app.sett.rfcEnabled || s.rfcPort != app.sett.rfcPort;
+    bool reboot = core::needsRestart(s, app.sett);
     app.pendingSettings = s;
     app.settingsPending.store(true);
 
@@ -165,15 +220,19 @@ void postSettings(AsyncWebServerRequest* request) {
 // Текст лога после позиции from; страница log.html опрашивает раз в секунду.
 void getLog(AsyncWebServerRequest* request) {
     uint32_t from = request->hasParam("from") ? strtoul(request->getParam("from")->value().c_str(), nullptr, 10) : 0;
-    std::unique_ptr<char[]> text(new (std::nothrow) char[LogSink::SIZE + 1]);
+    std::unique_ptr<char[]> text(new (std::nothrow) char[LOG_CHUNK + 1]);
     if (!text) {
         request->send(503, "text/plain", "не хватило памяти");
         return;
     }
     size_t len = 0;
     bool skipped = false;
-    uint32_t next = Log.read(from, text.get(), LogSink::SIZE, len, skipped);
-    text[len] = 0;
+    uint32_t next = Log.read(from, text.get(), LOG_CHUNK, len, skipped);
+    // Кусок мог кончиться посреди буквы: отдаём до её начала, остаток придёт
+    // следующим запросом — иначе страница получит битый UTF-8
+    size_t kept = core::utf8Trim(text.get(), len);
+    next -= (uint32_t)(len - kept);
+    text[kept] = 0;
 
     JsonDocument doc;
     doc["boot"] = Log.bootId();
@@ -188,7 +247,7 @@ void getLog(AsyncWebServerRequest* request) {
 }  // namespace
 
 void begin() {
-    if (!LittleFS.begin()) Log.println("LittleFS не смонтирован: залейте образ командой uploadfs");
+    if (!LittleFS.begin()) Log.error("LittleFS не смонтирован: залейте образ командой uploadfs\n");
 
     server.on("/api/status", HTTP_GET, getStatus);
     server.on("/api/settings", HTTP_GET, getSettings);
@@ -202,6 +261,7 @@ void begin() {
         sendOk(request);
     });
     server.on("/api/reboot", HTTP_POST, [](AsyncWebServerRequest* request) {
+        app.restartReason.store((uint8_t)core::RestartReason::WebButton);
         app.rebootNow.store(true);
         sendOk(request);
     });
@@ -209,6 +269,11 @@ void begin() {
     server.on("/api/log", HTTP_GET, getLog);
     wifi_portal::registerRoutes(server);
     ElegantOTA.begin(&server);  // страница /update: прошивка и образ LittleFS
+    // Колбэк работает в задаче async_tcp, поэтому здесь только атомарный флаг;
+    // в NVS его переносит loop(), см. web::loop()
+    ElegantOTA.onEnd([](bool success) {
+        if (success) app.restartReason.store((uint8_t)core::RestartReason::OtaWeb);
+    });
 
     server.serveStatic("/", LittleFS, "/").setDefaultFile("index.html").setCacheControl("no-cache");
     server.onNotFound([](AsyncWebServerRequest* request) {
@@ -219,6 +284,15 @@ void begin() {
     server.begin();
 }
 
-void loop() { ElegantOTA.loop(); }
+void loop() {
+    // ElegantOTA перезагружает плату сама, изнутри своего loop(): причину надо
+    // успеть записать до этого вызова, иначе она останется безликой
+    // «программной перезагрузкой»
+    if (app.restartReason.load() == (uint8_t)core::RestartReason::OtaWeb) {
+        storage::saveRestartReason(core::RestartReason::OtaWeb);
+        app.restartReason.store((uint8_t)core::RestartReason::Unknown);
+    }
+    ElegantOTA.loop();
+}
 
 }  // namespace web

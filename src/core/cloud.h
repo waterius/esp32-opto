@@ -25,6 +25,12 @@ struct DeviceInfo {
     int rssi = 0;
     uint32_t chipId = 0;
     uint8_t otaError = OTA_OK;
+
+    // Диагностика: без неё «устройство перезагрузилось» неотличимо от дёрганого
+    // питания, просадки и паники. Бэкенд эти поля пока игнорирует.
+    uint8_t resetReason = 0;  // esp_reset_reason()
+    uint32_t uptimeS = 0;
+    uint32_t wifiDisconnects = 0;
 };
 
 // readAt — UTC epoch чтения, 0 если время было неизвестно.

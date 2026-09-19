@@ -4,8 +4,11 @@
 #include <HTTPClient.h>
 #include <Update.h>
 
+#include "../core/restart_reason.h"
 #include "log.h"
 #include "net.h"
+#include "storage.h"
+#include "watchdog.h"
 
 namespace ota_cloud {
 namespace {
@@ -32,20 +35,23 @@ bool flash(const core::OtaImage& img, int command) {
         return false;
     }
     if (!Update.begin((size_t)len, command)) {
-        Log.printf("OTA: %s\n", Update.errorString());
+        Log.error("OTA: %s\n", Update.errorString());
         http.end();
         return false;
     }
     if (!Update.setMD5(img.md5)) {
-        Log.printf("OTA: контрольная сумма не принята: %s\n", img.md5);
+        Log.error("OTA: контрольная сумма не принята: %s\n", img.md5);
         Update.abort();
         http.end();
         return false;
     }
+    // Запись образа идёт минутами, а loop() в это время не крутится: кормим
+    // сторож здесь, иначе он примет исправное обновление за зависание
+    Update.onProgress([](size_t, size_t) { watchdog::feed(); });
     size_t written = Update.writeStream(*http.getStreamPtr());
     bool ok = written == (size_t)len && Update.end();
     if (!ok) {
-        Log.printf("OTA: записано %u из %d, %s\n", (unsigned)written, len, Update.errorString());
+        Log.error("OTA: записано %u из %d, %s\n", (unsigned)written, len, Update.errorString());
         Update.abort();
     }
     http.end();
@@ -58,6 +64,7 @@ uint8_t run(const core::OtaRequest& req) {
     if (req.filesystem.present && !flash(req.filesystem, U_SPIFFS)) return core::OTA_ERR_FS;
     if (req.firmware.present && !flash(req.firmware, U_FLASH)) return core::OTA_ERR_FIRMWARE;
     Log.println("OTA: готово, перезагрузка");
+    storage::saveRestartReason(core::RestartReason::OtaCloud);
     delay(300);
     ESP.restart();
     return core::OTA_OK;  // недостижимо: ESP.restart() не возвращается, но не объявлен noreturn

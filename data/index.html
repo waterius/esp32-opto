@@ -17,6 +17,7 @@
         <a href="/update">Обновление</a>
     </nav>
     <p id="link-lost" class="form-error hd">Нет связи с устройством</p>
+    <p id="safe-mode" class="form-error hd">Усечённый режим: несколько загрузок подряд закончились перезагрузкой. Опрос счётчика и прозрачный serial выключены — залейте исправную прошивку на странице «Обновление».</p>
 
     <h2>Счётчик</h2>
     <table>
@@ -49,6 +50,8 @@
         <tr><td>Сигнал Wi-Fi</td><td id="rssi">—</td></tr>
         <tr><td>Режим Wi-Fi</td><td id="wifi-mode">—</td></tr>
         <tr><td>Работает</td><td id="uptime">—</td></tr>
+        <tr><td>Причина загрузки</td><td id="boot-reason">—</td></tr>
+        <tr><td>Разрывов Wi-Fi</td><td id="wifi-drops">—</td></tr>
         <tr><td>Свободная память</td><td id="heap">—</td></tr>
     </table>
     <button class="btn-serv" onclick="reboot(this)">Перезагрузить</button>

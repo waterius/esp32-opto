@@ -2,6 +2,8 @@
 
 #include <Preferences.h>
 
+#include <string.h>
+
 namespace storage {
 namespace {
 
@@ -9,6 +11,15 @@ const char* NS = "opto";
 const char* KEY_SETTINGS = "settings";
 const char* KEY_READING = "reading";
 const char* KEY_OTA_ERROR = "ota_error";
+const char* KEY_FAST = "fast";
+const char* KEY_BOOTS = "boots";
+const char* KEY_RESTART = "restart";
+
+// Пара для быстрого коннекта — отдельно от блоба настроек, см. storage.h
+struct StoredFastConnect {
+    uint8_t channel;
+    uint8_t bssid[6];
+};
 
 struct StoredReading {
     core::MeterData data;
@@ -40,9 +51,51 @@ void loadSettings(core::Settings& s) {
     } else {
         s = core::Settings();
     }
+    StoredFastConnect fast;
+    if (loadBlob(KEY_FAST, &fast, sizeof(fast))) {
+        s.channel = fast.channel;
+        memcpy(s.bssid, fast.bssid, sizeof(s.bssid));
+    }
 }
 
 void saveSettings(const core::Settings& s) { saveBlob(KEY_SETTINGS, &s, sizeof(s)); }
+
+void saveFastConnect(const core::Settings& s) {
+    StoredFastConnect fast;
+    fast.channel = s.channel;
+    memcpy(fast.bssid, s.bssid, sizeof(fast.bssid));
+    saveBlob(KEY_FAST, &fast, sizeof(fast));
+}
+
+uint8_t loadBootCount() {
+    Preferences p;
+    if (!p.begin(NS, true)) return 0;
+    uint8_t v = p.getUChar(KEY_BOOTS, 0);
+    p.end();
+    return v;
+}
+
+void saveBootCount(uint8_t count) {
+    Preferences p;
+    if (!p.begin(NS, false)) return;
+    p.putUChar(KEY_BOOTS, count);
+    p.end();
+}
+
+core::RestartReason loadRestartReason() {
+    Preferences p;
+    if (!p.begin(NS, true)) return core::RestartReason::Unknown;
+    uint8_t v = p.getUChar(KEY_RESTART, 0);
+    p.end();
+    return (core::RestartReason)v;
+}
+
+void saveRestartReason(core::RestartReason reason) {
+    Preferences p;
+    if (!p.begin(NS, false)) return;
+    p.putUChar(KEY_RESTART, (uint8_t)reason);
+    p.end();
+}
 
 bool loadLastReading(core::MeterData& m, uint32_t& readAt) {
     StoredReading r;

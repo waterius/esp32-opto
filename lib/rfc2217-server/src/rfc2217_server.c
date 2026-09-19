@@ -6,11 +6,21 @@
 #include <pthread.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <netinet/tcp.h>
+#include <sys/time.h>
 #include "esp_log.h"
 #include "esp_pthread.h"
 #include "rfc2217_server.h"
 
 static const char *TAG = "rfc2217_server";
+
+// esp32-opto patch: без этого recv() блокируется навсегда. Полуоткрытое
+// соединение (клиент уснул, потерял сеть, NAT забыл трансляцию) держало сессию
+// вечно, а вместе с ней — оптопорт, опрос счётчика и отправку в облако.
+#define RFC2217_RECV_TIMEOUT_SEC 2   // recv() возвращается хотя бы так часто
+#define RFC2217_KEEPALIVE_IDLE 30    // молчим столько — TCP начинает щупать клиента
+#define RFC2217_KEEPALIVE_INTVL 10   // интервал проб
+#define RFC2217_KEEPALIVE_CNT 3      // проб без ответа до разрыва
 // telnet
 #define T_SE 0xf0U
 #define T_NOP 0xf1U
@@ -221,6 +231,7 @@ int rfc2217_server_create(const rfc2217_server_config_t *config, rfc2217_server_
 
     server->config = *config;
     server->telnet_mode = T_NORMAL;
+    server->client_socket = -1;  // esp32-opto patch: 0 is a valid descriptor
     pthread_mutex_init(&server->tcp_send_mutex, NULL);
     *out_server = server;
     return 0;
@@ -236,6 +247,20 @@ int rfc2217_server_start(rfc2217_server_t server)
         return -1;
     }
 
+    return 0;
+}
+
+// esp32-opto patch: close the current session from the outside. The firmware
+// calls this when the client has been silent for too long or when the network
+// is gone - otherwise a half-open session keeps the optical port forever.
+int rfc2217_server_disconnect_client(rfc2217_server_t server)
+{
+    if (!server || server->client_socket < 0) {
+        return -1;
+    }
+    server->tcp_receive_thread_shutdown = true;
+    // Wake the receive thread up even if it sits in recv() right now
+    shutdown(server->client_socket, SHUT_RDWR);
     return 0;
 }
 
@@ -303,6 +328,19 @@ void *server_thread_fn(void *ctx /* rfc2217_server_t server */)
             break;
         }
 
+        // esp32-opto patch: a blocking recv() with no timeout can never notice a
+        // half-open connection, and TCP will not tell us on its own unless we ask
+        struct timeval rcvtimeo = { .tv_sec = RFC2217_RECV_TIMEOUT_SEC, .tv_usec = 0 };
+        setsockopt(server->client_socket, SOL_SOCKET, SO_RCVTIMEO, &rcvtimeo, sizeof(rcvtimeo));
+        int keepalive = 1;
+        int keepidle = RFC2217_KEEPALIVE_IDLE;
+        int keepintvl = RFC2217_KEEPALIVE_INTVL;
+        int keepcnt = RFC2217_KEEPALIVE_CNT;
+        setsockopt(server->client_socket, SOL_SOCKET, SO_KEEPALIVE, &keepalive, sizeof(keepalive));
+        setsockopt(server->client_socket, IPPROTO_TCP, TCP_KEEPIDLE, &keepidle, sizeof(keepidle));
+        setsockopt(server->client_socket, IPPROTO_TCP, TCP_KEEPINTVL, &keepintvl, sizeof(keepintvl));
+        setsockopt(server->client_socket, IPPROTO_TCP, TCP_KEEPCNT, &keepcnt, sizeof(keepcnt));
+
         // esp32-opto patch: report the client right after accept(), without waiting
         // for RFC 2217 negotiation - a plain TCP client must stop meter polling too
         if (server->config.on_client_connected) {
@@ -316,6 +354,7 @@ void *server_thread_fn(void *ctx /* rfc2217_server_t server */)
 
         shutdown(server->client_socket, 0);
         close(server->client_socket);
+        server->client_socket = -1;  // esp32-opto patch: не трогать закрытый сокет
     }
     ESP_LOGD(TAG, "Server thread shutting down");
 
@@ -341,6 +380,17 @@ static void *tcp_receive_thread_fn(void *ctx /* rfc2217_server_t server */)
     do {
         len = recv(server->client_socket, server->tcp_rx_buffer, sizeof(server->tcp_rx_buffer) - 1, 0);
 
+        // esp32-opto patch: SO_RCVTIMEO makes recv() return without data every
+        // few seconds. That is not an error - it is the only moment when this
+        // thread can notice that someone asked it to stop.
+        if (len < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+            if (server->tcp_receive_thread_shutdown) {
+                ESP_LOGI(TAG, "Closing the session on request");
+                break;
+            }
+            len = 1;  // keep the do-while(len > 0) going: a timeout is not a disconnect
+            continue;
+        }
 
         if (len < 0) {
             ESP_LOGE(TAG, "Error occurred during receiving: errno %d (%s)", errno, strerror(errno));

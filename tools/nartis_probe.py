@@ -9,6 +9,7 @@ src/core/dlms.cpp: SNRM на 9600 8N1 по адресам 16 и 17, при ти�
     python3 tools/nartis_probe.py                    # порт найдётся сам, пароль 111
     python3 tools/nartis_probe.py -p 111 -v          # с дампом кадров
     python3 tools/nartis_probe.py --link-only        # только SNRM/UA, без пароля
+    python3 tools/nartis_probe.py --port rfc2217://192.168.50.95:2217   # через прошивку
 """
 import argparse
 import datetime
@@ -247,6 +248,9 @@ def get(link, cls, name, attr):
 # --- порт ------------------------------------------------------------------
 
 def open_port(path):
+    """Локальная головка или прошивка по RFC 2217: rfc2217://192.168.50.95:2217."""
+    if "://" in path:
+        return serial.serial_for_url(path, 9600, bytesize=8, parity="N", stopbits=1, timeout=0.05)
     return serial.Serial(path, 9600, bytesize=8, parity="N", stopbits=1, timeout=0.05)
 
 
@@ -289,7 +293,8 @@ def find_link(ser, client, addrs):
 def main():
     global VERBOSE
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--port", help="по умолчанию первый /dev/cu.usbserial-*")
+    ap.add_argument("--port", help="/dev/cu.usbserial-* (по умолчанию первый) "
+                                   "или rfc2217://host:2217 — прозрачный serial прошивки")
     ap.add_argument("-p", "--password", default="111", help="пароль чтения (по РЭ НАРТИС-100: 111)")
     ap.add_argument("--client", type=int, default=32)
     ap.add_argument("--addr", type=int, help="физический адрес; по умолчанию 16, затем 17")

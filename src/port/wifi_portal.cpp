@@ -144,6 +144,7 @@ void getWifiStatus(AsyncWebServerRequest* request) {
     static const char* NAMES[] = {"idle", "connecting", "connected", "failed"};
     JsonDocument doc;
     doc["status"] = NAMES[(int)net::status()];
+    doc["error"] = net::error();
     doc["ssid"] = app.sett.ssid;
     doc["ip"] = net::ip();
     doc["rssi"] = net::rssi();
@@ -193,6 +194,7 @@ void loop() {
         memcpy(app.sett.bssid, p.bssid, sizeof(app.sett.bssid));
         app.sett.channel = p.channel;
         storage::saveSettings(app.sett);
+        storage::saveFastConnect(app.sett);  // пара лежит отдельным ключом
         Log.printf("Wi-Fi: новая сеть %s\n", app.sett.ssid);
         net::reconnect(app.sett);
     }
