@@ -16,6 +16,9 @@ class FakeWifi {
     bool haveSsid = true;
     bool haveFast = true;
     bool apBusy = false;  // кто-то подключился к точке доступа
+    // Когда человек последний раз что-то делал на страницах портала. Опрос
+    // состояния сюда не входит: открытая вкладка не должна держать портал.
+    uint32_t portalFedMs = 0;
     bool refusedNew = false;  // роутер отверг только что введённую сеть
 
     // Наблюдаемое состояние
@@ -47,6 +50,7 @@ class FakeWifi {
         facts.haveFastConnect = haveFast;
         facts.apActive = apActive;
         facts.apBusy = apActive && apBusy;
+        facts.portalIdleMs = now - portalFedMs;
         facts.refusedNewNetwork = refusedNew;
         apply(policy.step(facts, now));
 

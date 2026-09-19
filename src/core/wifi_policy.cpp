@@ -15,8 +15,6 @@ void WifiPolicy::reset(uint32_t nowMs) {
     fastDisabled_ = false;
     forgetFastPending_ = false;
     restartPending_ = false;
-    apBusyWas_ = false;
-    apBusySinceMs_ = nowMs;
 }
 
 uint32_t WifiPolicy::offlineMs(uint32_t nowMs) const { return linkUp_ ? 0 : nowMs - lostSinceMs_; }
@@ -28,8 +26,6 @@ bool WifiPolicy::takeForgetFastConnect() {
 }
 
 WifiAction WifiPolicy::step(const WifiFacts& facts, uint32_t nowMs) {
-    if (facts.apBusy && !apBusyWas_) apBusySinceMs_ = nowMs;  // клиент только что пришёл
-    apBusyWas_ = facts.apBusy;
 
     if (facts.linkUp) {
         if (!linkUp_) {  // связь появилась: лестница начинается заново
@@ -99,16 +95,15 @@ WifiAction WifiPolicy::step(const WifiFacts& facts, uint32_t nowMs) {
         return WifiAction::RestartRadio;
     }
 
-    // Пока кто-то сидит на точке доступа, попытки подключения придерживаем.
-    // Радио у чипа одно: попытка уводит его в полный скан и на канал роутера
-    // на полторы-две секунды, и сессия настройки рвётся — а человек в этот
-    // момент как раз вводит новый пароль. Перезагрузку и перезапуск радио мы
-    // по той же причине уже запрещаем выше.
+    // Пока кто-то настраивает устройство через точку доступа, сами к роутеру не
+    // ходим: радио одно, попытка уводит его в полный скан на полторы-две
+    // секунды и обрывает сессию — ровно тогда, когда человек вводит пароль.
+    // Подключение в это время идёт только по явной команде со страницы, через
+    // net::reconnect(), который сбрасывает лестницу и бьёт сразу.
     //
-    // Но придерживаем ограниченное время: клиент может уйти, не отключившись,
-    // и тогда вечное ожидание оставит устройство офлайн навсегда — это хуже
-    // оборванной настройки.
-    if (facts.apBusy && cfg_.apBusyHoldMs && nowMs - apBusySinceMs_ < cfg_.apBusyHoldMs)
+    // Выход из этого состояния — не лимит попыток, а простой портала: забытый
+    // на точке телефон перестаёт что-либо значить через portalIdleGiveUpMs.
+    if (facts.apBusy && (!cfg_.portalIdleGiveUpMs || facts.portalIdleMs < cfg_.portalIdleGiveUpMs))
         return WifiAction::None;
 
     return startAttempt(facts, nowMs);

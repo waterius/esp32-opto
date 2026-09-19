@@ -195,11 +195,19 @@ void test_ap_stays_up_while_a_client_is_connected() {
     TEST_ASSERT_TRUE(w.apActive);
 
     w.apBusy = true;  // кто-то открыл страницу настроек
-    w.routerUp = true;
-    w.run(5 * MIN);
+    w.portalFedMs = w.now;
+    w.routerUp = true;  // роутер вернулся в эфир прямо во время настройки
+    w.run(5 * MIN, SEC);
 
-    TEST_ASSERT_TRUE_MESSAGE(w.linkUp, "к роутеру не подключились");
+    // Роутер появился, но лезть к нему сейчас нельзя: радио одно, и попытка
+    // оборвала бы человеку сессию. Ждём либо явной команды со страницы, либо
+    // того, что портал бросят.
+    TEST_ASSERT_FALSE_MESSAGE(w.linkUp, "подключились к роутеру, оборвав настройку");
     TEST_ASSERT_TRUE_MESSAGE(w.apActive, "точку доступа погасили под ногами у настраивающего");
+
+    // Портал бросили — устройство обязано вернуться в сеть само
+    w.run(10 * MIN, SEC);
+    TEST_ASSERT_TRUE_MESSAGE(w.linkUp, "после брошенного портала в сеть так и не вернулись");
 }
 
 // Радио одно на оба режима: каждая попытка подключения уводит его в полный скан
@@ -213,18 +221,40 @@ void test_no_connect_attempts_while_someone_configures_over_ap() {
 
     w.apBusy = true;  // кто-то открыл страницу настроек на точке доступа
     int before = w.count(WifiAction::ConnectFast) + w.count(WifiAction::ConnectScan);
-    w.run(2 * MIN, SEC);
-    int during = w.count(WifiAction::ConnectFast) + w.count(WifiAction::ConnectScan);
 
+    // Человек листает страницы: окно портала продлевается, попыток быть не должно
+    for (int i = 0; i < 20; ++i) {
+        w.portalFedMs = w.now;
+        w.run(30 * SEC, SEC);
+    }
+    int during = w.count(WifiAction::ConnectFast) + w.count(WifiAction::ConnectScan);
     TEST_ASSERT_EQUAL_MESSAGE(before, during,
                               "попытка подключения увела радио с канала точки под настраивающим");
+}
 
-    // Но не навсегда: клиент мог уйти, не отключившись, и вечное ожидание
-    // оставило бы устройство офлайн насовсем
-    w.run(5 * MIN, SEC);
-    int resumed = w.count(WifiAction::ConnectFast) + w.count(WifiAction::ConnectScan);
-    TEST_ASSERT_GREATER_THAN_MESSAGE(during, resumed,
-                                     "пауза под клиентом точки оказалась вечной");
+// Забытый на точке телефон не должен оставить устройство офлайн навсегда:
+// выход — простой портала, а не лимит попыток. Так же устроен сторож портала
+// waterius: его кормят действия человека, а не опрос страницы состояния.
+void test_forgotten_portal_client_stops_blocking_after_idle() {
+    FakeWifi w;
+    w.routerUp = false;
+    w.start();
+    w.run(3 * MIN);
+    TEST_ASSERT_TRUE(w.apActive);
+
+    w.apBusy = true;
+    w.portalFedMs = w.now;  // последнее действие человека — сейчас
+    int before = w.count(WifiAction::ConnectFast) + w.count(WifiAction::ConnectScan);
+
+    w.run(9 * MIN, SEC);  // десять минут ещё не вышли
+    TEST_ASSERT_EQUAL_MESSAGE(before,
+                              w.count(WifiAction::ConnectFast) + w.count(WifiAction::ConnectScan),
+                              "лестница возобновилась раньше, чем портал признан брошенным");
+
+    w.run(5 * MIN, SEC);  // а теперь вышли
+    TEST_ASSERT_GREATER_THAN_MESSAGE(
+        before, w.count(WifiAction::ConnectFast) + w.count(WifiAction::ConnectScan),
+        "брошенный портал оставил устройство офлайн навсегда");
 }
 
 void test_radio_is_not_restarted_under_a_configuring_client() {
@@ -361,6 +391,7 @@ int main() {
     RUN_TEST(test_ap_goes_down_when_router_returns);
     RUN_TEST(test_ap_stays_up_while_a_client_is_connected);
     RUN_TEST(test_no_connect_attempts_while_someone_configures_over_ap);
+    RUN_TEST(test_forgotten_portal_client_stops_blocking_after_idle);
     RUN_TEST(test_radio_is_not_restarted_under_a_configuring_client);
     RUN_TEST(test_ap_only_when_no_network_configured);
     RUN_TEST(test_reboot_after_an_hour_without_network);

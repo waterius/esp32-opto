@@ -39,6 +39,7 @@ bool rebootWanted = false;
 bool hasSsid_ = false;
 bool everConnected = false;  // с текущими настройками сети хоть раз подключились
 bool safeMode_ = false;
+std::atomic<uint32_t> portalFedMs_{0};  // когда человек последний раз трогал страницы
 char error_[64] = "";        // причина отказа для страницы /wifi (кириллица — 2 байта на букву)
 
 // Пишет колбэк событий SDK (задача event loop), читает loop().
@@ -409,6 +410,7 @@ void loop(const core::Settings& s) {
     facts.haveFastConnect = s.channel && hasBssid(s.bssid);
     facts.apActive = ap_;
     facts.apBusy = ap_ && WiFi.softAPgetStationNum() > 0;
+    facts.portalIdleMs = portalIdleMs();
     applyAction(policy.step(facts, now), s);
 }
 
@@ -459,6 +461,15 @@ uint8_t apConfigChannel() {
 }
 
 uint8_t apClients() { return apActive() ? WiFi.softAPgetStationNum() : 0; }
+
+// Окно портала. Продлевают только действия человека — открытие страниц,
+// сохранение формы, нажатия кнопок. Опрос /api/status и /api/log сюда
+// намеренно не входит: страницы опрашивают их сами раз в секунду, и открытая
+// вкладка держала бы портал вечно (та же причина, что в waterius, issue #305).
+// Пишется из задачи async_tcp, читается из loop() — отсюда atomic.
+void feedPortal() { portalFedMs_.store(millis()); }
+
+uint32_t portalIdleMs() { return millis() - portalFedMs_.load(); }
 
 const char* error() { return error_; }
 
