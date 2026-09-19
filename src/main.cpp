@@ -27,6 +27,11 @@ namespace {
 
 const uint32_t FACTORY_RESET_HOLD_MS = 5000;
 
+// Пульс в лог. Нужен для разбора отказов: без него зависший loop() неотличим
+// от исправного, но молчащего — наши сообщения выходят раз в несколько минут,
+// и десять секунд тишины не значат ничего.
+const uint32_t HEARTBEAT_MS = 60UL * 1000;
+
 core::BootGuard bootGuard;
 
 // Настройки со страницы /settings. В NVS пишет только loop().
@@ -86,6 +91,16 @@ void arduinoOta() {
         started = true;
     }
     ArduinoOTA.handle();
+}
+
+void heartbeat() {
+    static uint32_t lastMs = 0;
+    uint32_t now = millis();
+    if (now - lastMs < HEARTBEAT_MS) return;
+    lastMs = now;
+    Log.printf("Пульс: %lu мин, Wi-Fi %s, RSSI %d, куча %u, до отправки %lu мин\n",
+               (unsigned long)(now / 60000UL), net::connected() ? "ок" : "нет", net::rssi(),
+               (unsigned)ESP.getFreeHeap(), (unsigned long)(poller::secondsToNextSend() / 60));
 }
 
 // Удержание BOOT 5 секунд — сброс к заводским настройкам.
@@ -154,6 +169,7 @@ void loop() {
     applyPendingSettings();
     if (!app.safeMode) poller::loop();
     checkFactoryReset();
+    heartbeat();
 
     // Продержались достаточно долго — загрузка засчитана, счётчик обнуляется.
     // Плановые перезагрузки (смена настроек, OTA, час без сети) случаются уже

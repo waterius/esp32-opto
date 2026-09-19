@@ -3,9 +3,11 @@
 #include <HTTPClient.h>
 #include <WiFi.h>
 #include <esp_netif.h>
+#include <ping/ping_sock.h>
 
 #include <atomic>
 
+#include "../core/link_guard.h"
 #include "../core/wifi_policy.h"
 #include "log.h"
 
@@ -17,6 +19,15 @@ const uint32_t RADIO_OFF_MS = 200;       // пауза между выключе
 const IPAddress FALLBACK_DNS(8, 8, 8, 8);  // как DEF_FALLBACK_DNS в waterius
 
 core::WifiPolicy policy;
+core::LinkGuard link;
+bool linkDeadLogged = false;
+bool probeImpossibleLogged = false;
+
+// Ответ на пинг приходит в задачу ping — отсюда только флаг.
+std::atomic<bool> pingReplied{false};
+
+const uint32_t PING_TIMEOUT_MS = 1500;
+
 WiFiClientSecure tls;
 char apName_[24] = "";
 bool ap_ = false;
@@ -32,6 +43,9 @@ char error_[64] = "";        // причина отказа для страни�
 std::atomic<bool> gotIp_{false};
 std::atomic<uint16_t> lastReason_{0};
 std::atomic<uint32_t> disconnects_{0};
+// Что думает драйвер. Внутренний взгляд: верить ему на слово нельзя —
+// WiFi.status() умеет застревать в WL_CONNECTED на мёртвом соединении.
+bool driverConnected() { return gotIp_.load() && WiFi.status() == WL_CONNECTED; }
 
 bool hasBssid(const uint8_t bssid[6]) {
     for (int i = 0; i < 6; ++i)
@@ -86,6 +100,37 @@ void onWifiEvent(arduino_event_id_t event, arduino_event_info_t info) {
         }
         default: break;
     }
+}
+
+// Пингуем шлюз. Проверяется не мнение драйвера, а факт: ходят ли пакеты.
+// Шлюз выбран намеренно — он есть всегда и не зависит от интернета.
+// Возвращает false и когда ответа нет, и когда пинг вообще не запустился;
+// вторую ситуацию отличает пустой out-параметр possible.
+bool pingGateway(bool& possible) {
+    possible = false;
+    IPAddress gw = WiFi.gatewayIP();
+    if ((uint32_t)gw == 0) return false;
+
+    esp_ping_config_t cfg = ESP_PING_DEFAULT_CONFIG();
+    cfg.target_addr.type = ESP_IPADDR_TYPE_V4;
+    cfg.target_addr.u_addr.ip4.addr = (uint32_t)gw;
+    cfg.count = 1;
+    cfg.timeout_ms = PING_TIMEOUT_MS;
+
+    esp_ping_callbacks_t cbs = {};
+    cbs.on_ping_success = [](esp_ping_handle_t, void*) { pingReplied.store(true); };
+
+    esp_ping_handle_t ping = nullptr;
+    if (esp_ping_new_session(&cfg, &cbs, &ping) != ESP_OK) return false;
+
+    possible = true;
+    pingReplied.store(false);
+    esp_ping_start(ping);
+    uint32_t start = millis();
+    while (!pingReplied.load() && millis() - start < PING_TIMEOUT_MS + 500) delay(10);
+    esp_ping_stop(ping);
+    esp_ping_delete_session(ping);
+    return pingReplied.load();
 }
 
 void softApUp(const core::Settings& s) {
@@ -217,8 +262,42 @@ void begin(const core::Settings& s) {
 void loop(const core::Settings& s) {
     applyPolicyConfig(s);
     hasSsid_ = s.ssid[0] != 0;
+    uint32_t now = millis();
 
-    bool up = connected();
+    // Сначала мнение драйвера: смена состояния обнуляет контроль живости,
+    // иначе после переподключения он сразу вынес бы прошлый приговор
+    bool driverUp = driverConnected();
+    if (driverUp != wasConnected) {
+        link.reset(now);
+        linkDeadLogged = false;
+    }
+
+    // Пакеты реально ходят? Драйвер об этом знать не обязан
+    if (driverUp && link.shouldProbe(now)) {
+        bool wasArmed = link.armed();
+        bool possible = false;
+        bool replied = pingGateway(possible);
+        now = millis();  // пинг занимает до двух секунд
+        if (replied) link.probeOk(now);
+        else if (possible) link.probeFailed(now);
+
+        // Про удачную проверку сказать надо один раз: пока она не прошла,
+        // сторож не взведён и связь мёртвой не объявит. Молча — значит
+        // снаружи не отличить работающий контроль от бездействующего.
+        if (replied && !wasArmed) Log.println("Сеть: проверка связи работает, шлюз отвечает");
+        if (!possible && !probeImpossibleLogged) {
+            probeImpossibleLogged = true;
+            Log.println("Сеть: проверку связи запустить не удалось — контроль живости выключен");
+        }
+        if (!replied && possible && link.armed())
+            Log.printf("Сеть: шлюз не отвечает (%u подряд)\n", link.failures());
+    }
+    if (link.dead() && !linkDeadLogged) {
+        linkDeadLogged = true;
+        Log.println("Сеть: связь мертва, хотя драйвер считает иначе — переподключаемся");
+    }
+
+    bool up = driverUp && !link.dead();
     if (up && !wasConnected) {
         wasConnected = true;
         fastConnectFresh = true;
@@ -228,10 +307,11 @@ void loop(const core::Settings& s) {
         setBackupDns();
         Log.printf("Wi-Fi: подключено к %s, IP %s, RSSI %d\n", WiFi.SSID().c_str(),
                    WiFi.localIP().toString().c_str(), WiFi.RSSI());
-    } else if (!up && wasConnected) {
+    } else if (!driverUp && wasConnected) {
         wasConnected = false;
         Log.println("Wi-Fi: связь с роутером потеряна");
     }
+    wasConnected = driverUp;
 
     // Сеть ввели только что, и роутер отказал: это ответ, а не молчание.
     // Уже работавшую сеть это не трогает — там отказ бывает и при перезагрузке роутера.
@@ -244,12 +324,12 @@ void loop(const core::Settings& s) {
 
     core::WifiFacts facts;
     facts.refusedNewNetwork = refusedNew;
-    facts.linkUp = up;
+    facts.linkUp = up;  // мёртвый линк для лестницы — обычный обрыв
     facts.haveSsid = hasSsid_;
     facts.haveFastConnect = s.channel && hasBssid(s.bssid);
     facts.apActive = ap_;
     facts.apBusy = ap_ && WiFi.softAPgetStationNum() > 0;
-    applyAction(policy.step(facts, millis()), s);
+    applyAction(policy.step(facts, now), s);
 }
 
 void reconnect(const core::Settings& s) {
@@ -262,10 +342,18 @@ void reconnect(const core::Settings& s) {
     everConnected = false;  // пароль новый: отказ по нему снова поднимает точку сразу
     error_[0] = 0;
     lastReason_.store(0);
+    link.reset(millis());
+    linkDeadLogged = false;
     policy.reset(millis());  // лестница начинается заново, попытка — сразу
 }
 
-bool connected() { return gotIp_.load() && WiFi.status() == WL_CONNECTED; }
+// Наружу — связь, подтверждённая делом. Мёртвый линк, который драйвер считает
+// живым, для всей прошивки выглядит как отсутствие связи, и лестница
+// восстановления берётся за него как за обычный обрыв.
+bool connected() { return driverConnected() && !link.dead(); }
+
+bool linkAlive() { return !link.dead(); }
+bool linkGuardArmed() { return link.armed(); }
 bool apActive() { return ap_; }
 
 const char* error() { return error_; }
@@ -329,7 +417,10 @@ int postJson(const core::Settings& s, const char* path, const char* body, String
     http.addHeader("Waterius-Token", s.key);
     http.addHeader("Waterius-Email", s.email);
     int code = http.POST((uint8_t*)body, strlen(body));
-    if (code > 0) response = http.getString();
+    if (code > 0) {
+        link.activity(millis());  // сервер ответил — сеть точно жива
+        response = http.getString();
+    }
     http.end();
     return code;
 }

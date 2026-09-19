@@ -34,6 +34,7 @@ python3 tools/fake_device.py                             # веб-страниц
 - `test/test_boot_guard` — усечённый режим после серии неудачных загрузок;
 - `test/test_schedule` — разброс периода и рост паузы повтора;
 - `test/test_restart_reason` — приоритет источников причины перезагрузки;
+- `test/test_link_guard` — контроль живости сети и его предохранитель;
 - `test/test_text` — обрезка UTF-8 на границе куска лога.
 
 Env `native` собирает из `src` только файлы ядра, перечисленные в
@@ -61,7 +62,8 @@ ElegantOTA, igrr/rfc2217-server), портал Wi-Fi переносится из
 src/core/     ядро, без Arduino: nartis (адаптер на GuruxDLMS.c), cloud (запрос
               в облако, разбор ota), wifi_policy (лестница восстановления
               Wi-Fi), session_guard (сторож прозрачной сессии), boot_guard
-              (усечённый режим), schedule (разброс и backoff), restart_reason,
+              (усечённый режим), schedule (разброс и backoff), link_guard
+              (контроль живости сети), restart_reason,
               text,
               settings.h, meter.h, opto_port.h
 src/port/     железо: opto_bus (владелец UART1), opto_esp32, net (Wi-Fi, HTTPS),

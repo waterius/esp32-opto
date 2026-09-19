@@ -272,7 +272,7 @@ def status():
             'fw': FIRMWARE_VERSION, 'ip': SIM['ip'], 'rssi': SIM['rssi'],
             'uptime_s': uptime_ms() // 1000, 'heap': 180000 + random.randint(0, 4000),
             'wifi_mode': 'STA', 'safe_mode': SIM['safe_mode'],
-            'wifi_drops': SIM['wifi_drops'], 'wifi_offline_s': 0,
+            'wifi_drops': SIM['wifi_drops'], 'wifi_offline_s': 0, 'link_alive': True, 'link_armed': True,
             'boot_reason': 'подано питание',
             'meter_enabled': SETTINGS['meter_enabled'], 'meter_reading': DEV['reading'],
             'meter_error': DEV['meter_error'], 'transparent': SIM['transparent'],

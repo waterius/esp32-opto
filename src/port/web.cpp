@@ -50,6 +50,8 @@ void getStatus(AsyncWebServerRequest* request) {
     doc["safe_mode"] = app.safeMode;
     doc["wifi_drops"] = net::disconnectCount();
     doc["wifi_offline_s"] = net::offlineSeconds();
+    doc["link_alive"] = net::linkAlive();
+    doc["link_armed"] = net::linkGuardArmed();
     doc["boot_reason"] = app.bootReason;
     doc["watchdogs"] = watchdog::loopWatchdogArmed() && watchdog::rtcWatchdogArmed();
 
