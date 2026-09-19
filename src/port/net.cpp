@@ -95,7 +95,7 @@ void onWifiEvent(arduino_event_id_t event, arduino_event_info_t info) {
             uint16_t reason = info.wifi_sta_disconnected.reason;
             lastReason_.store(reason);
             disconnects_.fetch_add(1);
-            Log.printf("Wi-Fi: разрыв, причина %u — %s\n", reason, reasonName(reason));
+            Log.warn("Wi-Fi: разрыв, причина %u — %s\n", reason, reasonName(reason));
             break;
         }
         default: break;
@@ -189,7 +189,7 @@ void beginSta(const core::Settings& s, bool fast) {
 // Стек Wi-Fi залип: ни одна попытка не доходит до конца. То же делает ESPHome
 // в restart_adapter(), прежде чем дойти до перезагрузки всей платы.
 void restartRadio(const core::Settings& s) {
-    Log.println("Wi-Fi: перезапуск радио — попытки не проходят");
+    Log.warn("Wi-Fi: перезапуск радио — попытки не проходят\n");
     WiFi.disconnect(true, false);
     WiFi.mode(WIFI_OFF);
     delay(RADIO_OFF_MS);
@@ -207,7 +207,7 @@ void applyAction(core::WifiAction action, const core::Settings& s) {
         case core::WifiAction::StartAp: startAp(s); break;
         case core::WifiAction::StopAp: stopAp(); break;
         case core::WifiAction::Reboot:
-            Log.printf("Wi-Fi: нет сети %lu минут — перезагрузка\n",
+            Log.warn("Wi-Fi: нет сети %lu минут — перезагрузка\n",
                        (unsigned long)(policy.offlineMs(millis()) / 60000UL));
             rebootWanted = true;
             break;
@@ -287,14 +287,14 @@ void loop(const core::Settings& s) {
         if (replied && !wasArmed) Log.println("Сеть: проверка связи работает, шлюз отвечает");
         if (!possible && !probeImpossibleLogged) {
             probeImpossibleLogged = true;
-            Log.println("Сеть: проверку связи запустить не удалось — контроль живости выключен");
+            Log.warn("Сеть: проверку связи запустить не удалось — контроль живости выключен\n");
         }
         if (!replied && possible && link.armed())
-            Log.printf("Сеть: шлюз не отвечает (%u подряд)\n", link.failures());
+            Log.warn("Сеть: шлюз не отвечает (%u подряд)\n", (unsigned)link.failures());
     }
     if (link.dead() && !linkDeadLogged) {
         linkDeadLogged = true;
-        Log.println("Сеть: связь мертва, хотя драйвер считает иначе — переподключаемся");
+        Log.warn("Сеть: связь мертва, хотя драйвер считает иначе — переподключаемся\n");
     }
 
     bool up = driverUp && !link.dead();
@@ -309,7 +309,7 @@ void loop(const core::Settings& s) {
                    WiFi.localIP().toString().c_str(), WiFi.RSSI());
     } else if (!driverUp && wasConnected) {
         wasConnected = false;
-        Log.println("Wi-Fi: связь с роутером потеряна");
+        Log.warn("Wi-Fi: связь с роутером потеряна\n");
     }
     wasConnected = driverUp;
 
@@ -319,7 +319,7 @@ void loop(const core::Settings& s) {
     if (refusedNew && !error_[0]) {
         snprintf(error_, sizeof(error_), "%s",
                  lastReason_.load() == WIFI_REASON_NO_AP_FOUND ? "сеть не найдена" : "роутер отверг пароль");
-        Log.printf("Wi-Fi: %s — поднимаем точку доступа\n", error_);
+        Log.warn("Wi-Fi: %s — поднимаем точку доступа\n", error_);
     }
 
     core::WifiFacts facts;

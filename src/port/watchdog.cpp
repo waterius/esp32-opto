@@ -110,7 +110,7 @@ void begin() {
         Log.printf("Сторожа: цикл %lu с, RTC %lu с\n", (unsigned long)(LOOP_TIMEOUT_MS / 1000),
                    (unsigned long)rtcTimeoutS_);
     } else {
-        Log.printf("ВНИМАНИЕ: сторож цикла %s, сторож RTC %s\n",
+        Log.error("ВНИМАНИЕ: сторож цикла %s, сторож RTC %s\n",
                    loopArmed_ ? "запущен" : "НЕ ЗАПУСТИЛСЯ",
                    rtcArmed_ ? "запущен" : "НЕ ЗАПУСТИЛСЯ");
     }

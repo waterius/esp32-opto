@@ -7,6 +7,7 @@
 #include "app.h"
 #include "core/boot_guard.h"
 #include "core/restart_reason.h"
+#include "core/status_line.h"
 #include "poller.h"
 #include "port/log.h"
 #include "port/net.h"
@@ -27,10 +28,10 @@ namespace {
 
 const uint32_t FACTORY_RESET_HOLD_MS = 5000;
 
-// Пульс в лог. Нужен для разбора отказов: без него зависший loop() неотличим
-// от исправного, но молчащего — наши сообщения выходят раз в несколько минут,
-// и десять секунд тишины не значат ничего.
-const uint32_t HEARTBEAT_MS = 60UL * 1000;
+// Строка состояния в USB. Нужна для разбора отказов: до подключения хоста
+// драйвер USB весь вывод выбрасывает, поэтому подключившийся в середине работы
+// не узнал бы о плате ничего. Пять секунд — чтобы ответ был сразу.
+const uint32_t STATUS_MS = 5000;
 
 core::BootGuard bootGuard;
 
@@ -93,14 +94,55 @@ void arduinoOta() {
     ArduinoOTA.handle();
 }
 
-void heartbeat() {
+core::WifiMode wifiMode() {
+    bool ap = net::apActive();
+    bool sta = net::connected();
+    if (ap) return sta ? core::WifiMode::ApStation : core::WifiMode::Ap;
+    if (sta) return core::WifiMode::Station;
+    return net::status() == net::Status::Idle ? core::WifiMode::Down : core::WifiMode::Connecting;
+}
+
+void statusLine() {
     static uint32_t lastMs = 0;
     uint32_t now = millis();
-    if (now - lastMs < HEARTBEAT_MS) return;
+    if (now - lastMs < STATUS_MS) return;
     lastMs = now;
-    Log.printf("Пульс: %lu мин, Wi-Fi %s, RSSI %d, куча %u, до отправки %lu мин\n",
-               (unsigned long)(now / 60000UL), net::connected() ? "ок" : "нет", net::rssi(),
-               (unsigned)ESP.getFreeHeap(), (unsigned long)(poller::secondsToNextSend() / 60));
+    // Собирать факты незачем, если уровень выключен: net::ip() выделяет String
+    if (!Log.enabled(core::LogLevel::Trace)) return;
+
+    core::StatusFacts f;
+    f.version = FIRMWARE_VERSION;
+    f.uptimeS = now / 1000;
+    f.heap = ESP.getFreeHeap();
+    f.bootReason = app.bootReason;
+    f.safeMode = app.safeMode;
+
+    f.wifi = wifiMode();
+    f.ssid = app.sett.ssid;
+    String ip = net::ip();
+    f.ip = ip.c_str();
+    f.rssi = net::rssi();
+    f.drops = net::disconnectCount();
+    f.offlineS = net::offlineSeconds();
+
+    f.busOwner = busOwnerName(bus.owner());
+    f.port = bus.current();
+    f.rfcClient = rfc2217::active();
+
+    // Печатаем из loop(), поэтому показания читаем без seqlock
+    f.hasReading = app.hasReading;
+    f.total = app.last.total;
+    f.meterError = app.meterError;
+    // Чтение и отправка в периодическом цикле идут вместе, отдельного срока нет
+    f.nextReadS = poller::secondsToNextSend();
+
+    f.cloudCode = app.cloudCode;
+    f.cloudError = app.cloudError;
+    f.nextSendS = poller::secondsToNextSend();
+
+    // static: 640 байт на стеке loopTask соседствовали бы с TLS-сессией облака
+    static char buf[core::STATUS_CAP];
+    Log.line(core::LogLevel::Trace, buf, core::formatStatus(f, buf, sizeof(buf)));
 }
 
 // Удержание BOOT 5 секунд — сброс к заводским настройкам.
@@ -126,7 +168,11 @@ void checkFactoryReset() {
 
 void setup() {
     Log.begin(115200);
-    delay(200);
+    delay(200);  // даём USB перечислиться, иначе строку ниже просто выбросят
+    // Первое, что видно в мониторе: молчащий уровень иначе не отличить от
+    // молчащей прошивки
+    Log.info("Лог: serial=%s, буфер=%s\n", core::levelName(Log.levels().serial),
+             core::levelName(Log.levels().buffer));
     watchdog::begin();
     Log.printf("esp32-opto %s\n", FIRMWARE_VERSION);
     // Без этой строки «устройство перезагрузилось» неотличимо от дёрганого
@@ -169,7 +215,7 @@ void loop() {
     applyPendingSettings();
     if (!app.safeMode) poller::loop();
     checkFactoryReset();
-    heartbeat();
+    statusLine();
 
     // Продержались достаточно долго — загрузка засчитана, счётчик обнуляется.
     // Плановые перезагрузки (смена настроек, OTA, час без сети) случаются уже

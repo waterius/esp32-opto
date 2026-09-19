@@ -98,7 +98,7 @@ void readMeter() {
             core::utf8Truncate(app.meterError);
             readRetry = true;
             readRetryStartMs = millis();
-            Log.printf("Счётчик: %s, повтор через 5 минут\n", error);
+            Log.warn("Счётчик: %s, повтор через 5 минут\n", error);
             break;
         case core::ReadResult::AuthRejected:
             // После 5 неверных паролей счётчик блокируется на сутки — опрос выключаем
@@ -106,7 +106,7 @@ void readMeter() {
             core::utf8Truncate(app.meterError);
             app.sett.meterEnabled = false;
             storage::saveSettings(app.sett);
-            Log.printf("Счётчик: %s, опрос выключен\n", error);
+            Log.error("Счётчик: %s, опрос выключен\n", error);
             break;
         case core::ReadResult::Aborted:
             snprintf(app.meterError, sizeof(app.meterError), "чтение прервано прозрачной сессией");
@@ -163,14 +163,16 @@ void sendCloud() {
     String response;
     int code = net::postJson(app.sett, "/api/source/iz/", body, response);
     app.cloudCode = code;
-    Log.printf("Облако: HTTP %d %s\n", code, response.c_str());
+    // Ответ сервера кладём в лог обрезанным: целиком это сотни байт JSON,
+    // которые никому не нужны, зато выталкивают из буфера страницы всё полезное
+    Log.info("Облако: HTTP %d %.120s\n", code, response.c_str());
     if (code != 200) {
         snprintf(app.cloudError, sizeof(app.cloudError), code < 0 ? "нет соединения" : "сервер ответил ошибкой");
         if (sendFails < 255) ++sendFails;
         sendRetryDelayMs = core::retryDelayMs(sendFails, SEND_RETRY_BASE_MS, SEND_RETRY_MAX_MS);
         sendRetry = true;
         sendRetryStartMs = millis();
-        Log.printf("Облако: повтор через %lu минут\n", (unsigned long)(sendRetryDelayMs / 60000UL));
+        Log.warn("Облако: повтор через %lu минут\n", (unsigned long)(sendRetryDelayMs / 60000UL));
         return;
     }
 

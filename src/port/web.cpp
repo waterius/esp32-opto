@@ -247,7 +247,7 @@ void getLog(AsyncWebServerRequest* request) {
 }  // namespace
 
 void begin() {
-    if (!LittleFS.begin()) Log.println("LittleFS не смонтирован: залейте образ командой uploadfs");
+    if (!LittleFS.begin()) Log.error("LittleFS не смонтирован: залейте образ командой uploadfs\n");
 
     server.on("/api/status", HTTP_GET, getStatus);
     server.on("/api/settings", HTTP_GET, getSettings);

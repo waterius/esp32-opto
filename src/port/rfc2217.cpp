@@ -111,7 +111,7 @@ unsigned onStopsize(void*, unsigned requested) {
 void begin(uint16_t port) {
     fromClient = xStreamBufferCreate(FROM_CLIENT_BUFFER, 1);
     if (!fromClient) {
-        Log.println("RFC 2217: не выделен буфер приёма, сервер не запущен");
+        Log.error("RFC 2217: не выделен буфер приёма, сервер не запущен\n");
         return;
     }
     rfc2217_server_config_t cfg = {};
@@ -140,7 +140,7 @@ void begin(uint16_t port) {
     esp_pthread_set_cfg(&defaultCfg);  // на уже созданные потоки не влияет, возвращает cfg только этому
 
     if (failed) {
-        Log.println("RFC 2217: сервер не запустился");
+        Log.error("RFC 2217: сервер не запустился\n");
         server = nullptr;
         return;
     }

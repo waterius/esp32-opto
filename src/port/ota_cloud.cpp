@@ -35,12 +35,12 @@ bool flash(const core::OtaImage& img, int command) {
         return false;
     }
     if (!Update.begin((size_t)len, command)) {
-        Log.printf("OTA: %s\n", Update.errorString());
+        Log.error("OTA: %s\n", Update.errorString());
         http.end();
         return false;
     }
     if (!Update.setMD5(img.md5)) {
-        Log.printf("OTA: контрольная сумма не принята: %s\n", img.md5);
+        Log.error("OTA: контрольная сумма не принята: %s\n", img.md5);
         Update.abort();
         http.end();
         return false;
@@ -51,7 +51,7 @@ bool flash(const core::OtaImage& img, int command) {
     size_t written = Update.writeStream(*http.getStreamPtr());
     bool ok = written == (size_t)len && Update.end();
     if (!ok) {
-        Log.printf("OTA: записано %u из %d, %s\n", (unsigned)written, len, Update.errorString());
+        Log.error("OTA: записано %u из %d, %s\n", (unsigned)written, len, Update.errorString());
         Update.abort();
     }
     http.end();
