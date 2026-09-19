@@ -6,6 +6,7 @@
 
 #include "app.h"
 #include "core/boot_guard.h"
+#include "core/restart_reason.h"
 #include "poller.h"
 #include "port/log.h"
 #include "port/net.h"
@@ -48,7 +49,10 @@ void applyPendingSettings() {
     // Иначе после ручного выключения тумблера страница показывает старую причину
     // ошибки (например, отказ пароля), хотя опрос выключен пользователем, не счётчиком.
     if (meterTurnedOff) app.meterError[0] = 0;
-    if (reboot) app.rebootNow.store(true);  // см. core::needsRestart
+    if (reboot) {  // см. core::needsRestart
+        app.restartReason.store((uint8_t)core::RestartReason::Settings);
+        app.rebootNow.store(true);
+    }
 }
 
 // Канал и BSSID роутера после подключения — для быстрого коннекта (как в waterius).
@@ -98,6 +102,7 @@ void checkFactoryReset() {
     if (millis() - pressedAt < FACTORY_RESET_HOLD_MS) return;
     Log.println("Сброс к заводским настройкам");
     storage::resetAll();
+    storage::saveRestartReason(core::RestartReason::FactoryReset);  // после очистки, иначе сотрётся
     delay(300);
     ESP.restart();
 }
@@ -110,9 +115,12 @@ void setup() {
     watchdog::begin();
     Log.printf("esp32-opto %s\n", FIRMWARE_VERSION);
     // Без этой строки «устройство перезагрузилось» неотличимо от дёрганого
-    // питания, просадки и паники — а чинятся они по-разному
-    Log.printf("Причина загрузки: %s\n", watchdog::resetReason());
-    if (watchdog::trippedLastBoot()) Log.println("Прошлая перезагрузка — сторож главного цикла");
+    // питания, просадки, паники и нашей же плановой перезагрузки
+    core::RestartReason planned = storage::loadRestartReason();
+    app.bootReason = core::restartText(planned, watchdog::trippedLastBoot(), watchdog::resetReason());
+    Log.printf("Причина загрузки: %s\n", app.bootReason);
+    if (planned != core::RestartReason::Unknown)
+        storage::saveRestartReason(core::RestartReason::Unknown);  // причина учтена
     pinMode(BOOT_PIN, INPUT_PULLUP);
 
     storage::saveBootCount(bootGuard.onBoot(storage::loadBootCount()));
@@ -155,8 +163,12 @@ void loop() {
         Log.println("Загрузка признана удачной");
     }
 
-    if (net::rebootRequested()) app.rebootNow.store(true);
+    if (net::rebootRequested()) {
+        app.restartReason.store((uint8_t)core::RestartReason::NoNetwork);
+        app.rebootNow.store(true);
+    }
     if (app.rebootNow.load()) {
+        storage::saveRestartReason((core::RestartReason)app.restartReason.load());
         delay(300);
         ESP.restart();
     }

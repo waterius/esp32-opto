@@ -13,6 +13,7 @@ const char* KEY_READING = "reading";
 const char* KEY_OTA_ERROR = "ota_error";
 const char* KEY_FAST = "fast";
 const char* KEY_BOOTS = "boots";
+const char* KEY_RESTART = "restart";
 
 // Пара для быстрого коннекта — отдельно от блоба настроек, см. storage.h
 struct StoredFastConnect {
@@ -78,6 +79,21 @@ void saveBootCount(uint8_t count) {
     Preferences p;
     if (!p.begin(NS, false)) return;
     p.putUChar(KEY_BOOTS, count);
+    p.end();
+}
+
+core::RestartReason loadRestartReason() {
+    Preferences p;
+    if (!p.begin(NS, true)) return core::RestartReason::Unknown;
+    uint8_t v = p.getUChar(KEY_RESTART, 0);
+    p.end();
+    return (core::RestartReason)v;
+}
+
+void saveRestartReason(core::RestartReason reason) {
+    Preferences p;
+    if (!p.begin(NS, false)) return;
+    p.putUChar(KEY_RESTART, (uint8_t)reason);
     p.end();
 }
 

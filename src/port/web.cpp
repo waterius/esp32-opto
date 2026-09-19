@@ -13,6 +13,7 @@
 #include "log.h"
 #include "net.h"
 #include "rfc2217.h"
+#include "storage.h"
 #include "watchdog.h"
 #include "wifi_portal.h"
 
@@ -49,7 +50,8 @@ void getStatus(AsyncWebServerRequest* request) {
     doc["safe_mode"] = app.safeMode;
     doc["wifi_drops"] = net::disconnectCount();
     doc["wifi_offline_s"] = net::offlineSeconds();
-    doc["boot_reason"] = watchdog::resetReason();
+    doc["boot_reason"] = app.bootReason;
+    doc["watchdogs"] = watchdog::loopWatchdogArmed() && watchdog::rtcWatchdogArmed();
 
     doc["meter_enabled"] = app.sett.meterEnabled;
     doc["meter_reading"] = app.meterReading.load();
@@ -257,6 +259,7 @@ void begin() {
         sendOk(request);
     });
     server.on("/api/reboot", HTTP_POST, [](AsyncWebServerRequest* request) {
+        app.restartReason.store((uint8_t)core::RestartReason::WebButton);
         app.rebootNow.store(true);
         sendOk(request);
     });
@@ -264,6 +267,11 @@ void begin() {
     server.on("/api/log", HTTP_GET, getLog);
     wifi_portal::registerRoutes(server);
     ElegantOTA.begin(&server);  // страница /update: прошивка и образ LittleFS
+    // Колбэк работает в задаче async_tcp, поэтому здесь только атомарный флаг;
+    // в NVS его переносит loop(), см. web::loop()
+    ElegantOTA.onEnd([](bool success) {
+        if (success) app.restartReason.store((uint8_t)core::RestartReason::OtaWeb);
+    });
 
     server.serveStatic("/", LittleFS, "/").setDefaultFile("index.html").setCacheControl("no-cache");
     server.onNotFound([](AsyncWebServerRequest* request) {
@@ -274,6 +282,15 @@ void begin() {
     server.begin();
 }
 
-void loop() { ElegantOTA.loop(); }
+void loop() {
+    // ElegantOTA перезагружает плату сама, изнутри своего loop(): причину надо
+    // успеть записать до этого вызова, иначе она останется безликой
+    // «программной перезагрузкой»
+    if (app.restartReason.load() == (uint8_t)core::RestartReason::OtaWeb) {
+        storage::saveRestartReason(core::RestartReason::OtaWeb);
+        app.restartReason.store((uint8_t)core::RestartReason::Unknown);
+    }
+    ElegantOTA.loop();
+}
 
 }  // namespace web

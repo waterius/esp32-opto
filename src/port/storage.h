@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 #include "../core/meter.h"
+#include "../core/restart_reason.h"
 #include "../core/settings.h"
 
 namespace storage {
@@ -21,6 +22,12 @@ void saveFastConnect(const core::Settings& s);
 // после неудачной прошивки (safe mode).
 uint8_t loadBootCount();
 void saveBootCount(uint8_t count);
+
+// Кто перезагрузил плату. Пишется из loop() перед самой перезагрузкой,
+// читается и сбрасывается на следующем старте. Сторож цикла сюда писать не
+// может — он работает, когда loop() уже не жив, и оставляет метку в RTC.
+core::RestartReason loadRestartReason();
+void saveRestartReason(core::RestartReason reason);
 
 // false — успешных чтений ещё не было. readAt — UTC epoch, 0 если время было неизвестно.
 bool loadLastReading(core::MeterData& m, uint32_t& readAt);

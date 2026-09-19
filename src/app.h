@@ -4,6 +4,7 @@
 #include <atomic>
 
 #include "core/meter.h"
+#include "core/restart_reason.h"
 #include "core/settings.h"
 
 struct AppState {
@@ -12,6 +13,9 @@ struct AppState {
     // Слишком много загрузок подряд не дожили до пяти минут: работают только
     // сеть, страницы и обновление. Ставится в setup(), дальше не меняется.
     bool safeMode = false;
+
+    // Причина прошлой загрузки словами; строка статическая, живёт всю работу
+    const char* bootReason = "";
 
     // Последнее успешное чтение счётчика (хранится в NVS).
     // Пишет только poller из loop(), читают веб-хендлеры из задачи async_tcp —
@@ -42,6 +46,9 @@ struct AppState {
     std::atomic<bool> readNow{false};
     std::atomic<bool> sendNow{false};
     std::atomic<bool> rebootNow{false};
+    // Кто её попросил: уходит в NVS перед перезагрузкой и показывается
+    // на странице статуса после следующего старта
+    std::atomic<uint8_t> restartReason{(uint8_t)core::RestartReason::Unknown};
     std::atomic<bool> settingsPending{false};
     core::Settings pendingSettings;
 };

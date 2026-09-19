@@ -33,6 +33,7 @@ python3 tools/fake_device.py                             # веб-страниц
 - `test/test_session_guard` — полуоткрытая сессия RFC 2217;
 - `test/test_boot_guard` — усечённый режим после серии неудачных загрузок;
 - `test/test_schedule` — разброс периода и рост паузы повтора;
+- `test/test_restart_reason` — приоритет источников причины перезагрузки;
 - `test/test_text` — обрезка UTF-8 на границе куска лога.
 
 Env `native` собирает из `src` только файлы ядра, перечисленные в
@@ -60,12 +61,13 @@ ElegantOTA, igrr/rfc2217-server), портал Wi-Fi переносится из
 src/core/     ядро, без Arduino: nartis (адаптер на GuruxDLMS.c), cloud (запрос
               в облако, разбор ota), wifi_policy (лестница восстановления
               Wi-Fi), session_guard (сторож прозрачной сессии), boot_guard
-              (усечённый режим), schedule (разброс и backoff), text,
+              (усечённый режим), schedule (разброс и backoff), restart_reason,
+              text,
               settings.h, meter.h, opto_port.h
 src/port/     железо: opto_bus (владелец UART1), opto_esp32, net (Wi-Fi, HTTPS),
               wifi_portal (перенос из waterius), web (API), rfc2217, ota_cloud,
-              storage (NVS), log (USB + кольцевой буфер), watchdog (сторож
-              loop() и причина перезагрузки), hal_esp32
+              storage (NVS), log (USB + кольцевой буфер), watchdog (сторожа
+              loop() и RTC, причина перезагрузки), hal_esp32
 src/poller.*  автомат опроса счётчика и отправки в облако
 src/app.h     общее состояние и флаги запросов с веб-страниц
 data/         четыре страницы, app.js, style.css — образ LittleFS
