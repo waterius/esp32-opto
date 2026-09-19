@@ -202,6 +202,31 @@ void test_ap_stays_up_while_a_client_is_connected() {
     TEST_ASSERT_TRUE_MESSAGE(w.apActive, "точку доступа погасили под ногами у настраивающего");
 }
 
+// Радио одно на оба режима: каждая попытка подключения уводит его в полный скан
+// и на канал роутера, обрывая сессию настройки. Пока портал занят — не ходим.
+void test_no_connect_attempts_while_someone_configures_over_ap() {
+    FakeWifi w;
+    w.routerUp = false;
+    w.start();
+    w.run(3 * MIN);
+    TEST_ASSERT_TRUE(w.apActive);
+
+    w.apBusy = true;  // кто-то открыл страницу настроек на точке доступа
+    int before = w.count(WifiAction::ConnectFast) + w.count(WifiAction::ConnectScan);
+    w.run(2 * MIN, SEC);
+    int during = w.count(WifiAction::ConnectFast) + w.count(WifiAction::ConnectScan);
+
+    TEST_ASSERT_EQUAL_MESSAGE(before, during,
+                              "попытка подключения увела радио с канала точки под настраивающим");
+
+    // Но не навсегда: клиент мог уйти, не отключившись, и вечное ожидание
+    // оставило бы устройство офлайн насовсем
+    w.run(5 * MIN, SEC);
+    int resumed = w.count(WifiAction::ConnectFast) + w.count(WifiAction::ConnectScan);
+    TEST_ASSERT_GREATER_THAN_MESSAGE(during, resumed,
+                                     "пауза под клиентом точки оказалась вечной");
+}
+
 void test_radio_is_not_restarted_under_a_configuring_client() {
     FakeWifi w;
     w.routerUp = false;
@@ -335,6 +360,7 @@ int main() {
     RUN_TEST(test_working_network_does_not_raise_ap_early);
     RUN_TEST(test_ap_goes_down_when_router_returns);
     RUN_TEST(test_ap_stays_up_while_a_client_is_connected);
+    RUN_TEST(test_no_connect_attempts_while_someone_configures_over_ap);
     RUN_TEST(test_radio_is_not_restarted_under_a_configuring_client);
     RUN_TEST(test_ap_only_when_no_network_configured);
     RUN_TEST(test_reboot_after_an_hour_without_network);

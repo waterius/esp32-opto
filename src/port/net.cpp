@@ -300,15 +300,42 @@ void begin(const core::Settings& s) {
 // Возвращаем её на тот канал, где радио сейчас. Найдено на плате: точка стояла
 // на канале 1, радио ушло на 6, в эфире сети не было (см. docs/08-reliability).
 void followRadioChannel(const core::Settings& s) {
-    if (!apActive()) return;
+    // Во время полного скана радио перебирает каналы каждые ~120 мс, и
+    // мгновенное расхождение — норма, а не повод переподнимать точку. Ждём,
+    // пока оно устоится, и не переносим чаще раза в 10 секунд: каждый вызов
+    // softAP() переинициализирует интерфейс и прерывает маяки, то есть лечение
+    // без выдержки было бы хуже болезни.
+    const uint32_t SETTLE_MS = 3000;
+    const uint32_t MOVE_GAP_MS = 10000;
+    static uint32_t mismatchSinceMs = 0;  // 0 — расхождения нет
+    static uint32_t lastMoveMs = 0;
+
+    if (!apActive()) {
+        mismatchSinceMs = 0;
+        return;
+    }
     uint8_t primary = 0;
     wifi_second_chan_t second = WIFI_SECOND_CHAN_NONE;
-    if (esp_wifi_get_channel(&primary, &second) != ESP_OK || !primary) return;
     wifi_config_t cfg = {};
-    if (esp_wifi_get_config(WIFI_IF_AP, &cfg) != ESP_OK || cfg.ap.channel == primary) return;
-    Log.debug("Wi-Fi: точка переезжает с канала %u на %u — радио ушло за роутером\n",
-              (unsigned)cfg.ap.channel, (unsigned)primary);
+    if (esp_wifi_get_channel(&primary, &second) != ESP_OK || !primary ||
+        esp_wifi_get_config(WIFI_IF_AP, &cfg) != ESP_OK || cfg.ap.channel == primary) {
+        mismatchSinceMs = 0;
+        return;
+    }
+
+    uint32_t now = millis();
+    if (!mismatchSinceMs) {
+        mismatchSinceMs = now | 1;  // 0 занят под «расхождения нет»
+        return;
+    }
+    if (now - mismatchSinceMs < SETTLE_MS) return;
+    if (lastMoveMs && now - lastMoveMs < MOVE_GAP_MS) return;
+
+    Log.warn("Wi-Fi: точка переезжает с канала %u на %u — радио ушло за роутером\n",
+             (unsigned)cfg.ap.channel, (unsigned)primary);
     if (WiFi.softAP(apName_, nullptr, primary, 0, 4)) apChannel_ = primary;
+    mismatchSinceMs = 0;
+    lastMoveMs = now | 1;
 }
 
 void loop(const core::Settings& s) {
@@ -420,6 +447,18 @@ uint8_t apChannel() {
     if (esp_wifi_get_channel(&primary, &second) == ESP_OK && primary) return primary;
     return apChannel_;
 }
+
+// Канал, который радио приняло в конфиг точки. Отличается от apChannel()
+// намеренно: тот отдаёт рабочий канал приёмопередатчика. Расхождение этих двух
+// чисел и означает «точка поднята, а маяков нет».
+uint8_t apConfigChannel() {
+    if (!apActive()) return 0;
+    wifi_config_t cfg = {};
+    if (esp_wifi_get_config(WIFI_IF_AP, &cfg) != ESP_OK) return 0;
+    return cfg.ap.channel;
+}
+
+uint8_t apClients() { return apActive() ? WiFi.softAPgetStationNum() : 0; }
 
 const char* error() { return error_; }
 

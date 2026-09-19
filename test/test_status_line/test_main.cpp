@@ -29,6 +29,8 @@ static StatusFacts typical() {
     f.wifi = WifiMode::ApStation;
     f.apName = "esp32-opto-926C";
     f.apChannel = 5;
+    f.apCfgChannel = 5;
+    f.apClients = 1;
     f.ssid = "Дача";
     f.ip = "192.168.1.42";
     f.rssi = -67;
@@ -80,7 +82,7 @@ void test_typical_line() {
     size_t len = core::formatStatus(f, out, sizeof(out));
     TEST_ASSERT_EQUAL_STRING(
         "status fw=0.2.0 up=3725 heap=142312 boot=\"сторож главного цикла\" safe=0 "
-        "wifi=ap+sta ap=\"esp32-opto-926C\" apch=5 ssid=\"Дача\" ip=192.168.1.42 rssi=-67 drops=3 offline=0 "
+        "wifi=ap+sta ap=\"esp32-opto-926C\" apch=5 apcfg=5 apcli=1 ssid=\"Дача\" ip=192.168.1.42 rssi=-67 drops=3 offline=0 "
         "bus=transparent port=9600-8N1 rfc=1 read=1 total=12345.678 merr=\"\" mnext=284 "
         "code=200 cerr=\"\" cnext=284",
         out);
@@ -93,7 +95,7 @@ void test_empty_facts_still_parse() {
     StatusFacts f;
     core::formatStatus(f, out, sizeof(out));
     TEST_ASSERT_EQUAL_STRING(
-        "status fw=- up=0 heap=0 boot=\"\" safe=0 wifi=off ap=\"\" apch=0 ssid=\"\" ip=- rssi=0 drops=0 "
+        "status fw=- up=0 heap=0 boot=\"\" safe=0 wifi=off ap=\"\" apch=0 apcfg=0 apcli=0 ssid=\"\" ip=- rssi=0 drops=0 "
         "offline=0 bus=- port=9600-8N1 rfc=0 read=0 total=0.000 merr=\"\" mnext=0 "
         "code=0 cerr=\"\" cnext=0",
         out);
