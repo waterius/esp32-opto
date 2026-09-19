@@ -39,6 +39,25 @@
 - [espressif/arduino-esp32#12714](https://github.com/espressif/arduino-esp32/issues/12714) — `WiFi.status()` остаётся `WL_CONNECTED` на мёртвом соединении
 - [igrr/rfc2217-server](https://github.com/igrr/rfc2217-server) — исходник сервера прозрачного serial; патчи описаны в `lib/rfc2217-server/PATCHES.md`
 
+## Лог и USB на ESP32
+
+Разбор вёлся по исходникам установленных пакетов; версии закреплены
+`platform = espressif32@6.12.0` в `platformio.ini`.
+
+- `framework-arduinoespressif32` 3.20017.241212 (arduino-esp32 2.0.17),
+  `cores/esp32/HWCDC.cpp` — `write()`, `flushTXBuffer()`, `setTxTimeoutMs()`,
+  `setTxBufferSize()`: поведение при отвалившемся и при зависшем хосте
+- `cores/esp32/Print.cpp` — `println()` разбивается на два вызова `write()`
+- `cores/esp32/esp32-hal-uart.c` — `log_printfv()` и общий `static char loc_buf[64]`:
+  вывод `CORE_DEBUG_LEVEL` идёт мимо нашего лога
+- `framework-espidf`, `components/esp_ringbuf/ringbuf.c` — `xRingbufferSend()`
+  с нулевым размером для byte-буфера возвращает `pdTRUE`; на этом и держится
+  ловушка `setTxTimeoutMs(0)`
+- `framework-arduinoespressif32-libs/esp32c3/sdkconfig` — `CONFIG_FREERTOS_HZ=1000`,
+  отсюда `portTICK_PERIOD_MS = 1`
+- описание платы `esp32-s3-devkitc-1.json` — `-DARDUINO_USB_MODE=1` приходит
+  оттуда, поэтому `Serial` у S3 тоже `HWCDC`
+
 ## Товар
 
 - [AliExpress: kWh Meter Infrared Reading Head IEC1107 Probe CP2102](https://www.aliexpress.com/item/1005004623593781.html)
