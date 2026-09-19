@@ -331,7 +331,7 @@ void loop(const core::Settings& s) {
     if (refusedNew && !error_[0]) {
         snprintf(error_, sizeof(error_), "%s",
                  lastReason_.load() == WIFI_REASON_NO_AP_FOUND ? "сеть не найдена" : "роутер отверг пароль");
-        Log.warn("Wi-Fi: %s — поднимаем точку доступа\n", error_);
+        Log.warn("Wi-Fi: %s\n", error_);
     }
 
     core::WifiFacts facts;

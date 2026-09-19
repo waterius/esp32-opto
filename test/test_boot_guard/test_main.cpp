@@ -50,17 +50,17 @@ void test_safe_mode_persists_until_a_good_boot() {
     for (int i = 0; i < 5; ++i) boot(flash, 3 * SEC);
     TEST_ASSERT_TRUE(boot(flash, 3 * SEC));
 
-    // Залили рабочую прошивку по /update — она доживает до пяти минут
-    TEST_ASSERT_TRUE_MESSAGE(boot(flash, 6 * MIN), "эта загрузка ещё считается неудачной");
+    // Залили рабочую прошивку по /update — она доживает до минуты
+    TEST_ASSERT_TRUE_MESSAGE(boot(flash, 2 * MIN), "эта загрузка ещё считается неудачной");
     TEST_ASSERT_EQUAL(0, flash.bootCount);
-    TEST_ASSERT_FALSE_MESSAGE(boot(flash, 6 * MIN), "усечённый режим не выключился");
+    TEST_ASSERT_FALSE_MESSAGE(boot(flash, 2 * MIN), "усечённый режим не выключился");
 }
 
 void test_boot_is_good_fires_once() {
     BootGuard guard;
     guard.onBoot(0);
-    TEST_ASSERT_FALSE(guard.takeBootIsGood(1 * MIN));
-    TEST_ASSERT_TRUE(guard.takeBootIsGood(5 * MIN));
+    TEST_ASSERT_FALSE_MESSAGE(guard.takeBootIsGood(30 * SEC), "загрузку засчитали слишком рано");
+    TEST_ASSERT_TRUE(guard.takeBootIsGood(1 * MIN));
     TEST_ASSERT_FALSE_MESSAGE(guard.takeBootIsGood(9 * MIN), "лишняя запись в NVS каждую итерацию loop()");
 }
 

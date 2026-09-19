@@ -61,7 +61,7 @@ WifiAction WifiPolicy::step(const WifiFacts& facts, uint32_t nowMs) {
         }
         if (cfg_.restartRadioEvery && fails_ % cfg_.restartRadioEvery == 0) restartPending_ = true;
         retryStartMs_ = nowMs;
-        retryDelayMs_ = facts.apActive ? cfg_.apRetryMs : 0;
+        retryDelayMs_ = facts.apActive ? cfg_.apRetryMs : cfg_.retryPauseMs;
     }
 
     // Сеть не настроена: только точка доступа. Ни попыток, ни перезагрузки —
@@ -74,9 +74,12 @@ WifiAction WifiPolicy::step(const WifiFacts& facts, uint32_t nowMs) {
     if (cfg_.rebootAfterMs && !facts.apBusy && nowMs - lostSinceMs_ >= cfg_.rebootAfterMs)
         return WifiAction::Reboot;
 
-    // Отказ по свежевведённой сети виден за секунду — поднимаем точку сразу,
-    // иначе вернуться на страницу /wifi будет неоткуда целых две минуты.
-    if (!facts.apActive && (facts.refusedNewNetwork || nowMs - lostSinceMs_ >= cfg_.apAfterMs))
+    // Отказ по свежевведённой сети: точка нужна раньше apAfterMs, иначе
+    // вернуться на страницу /wifi будет неоткуда целых две минуты. Но не по
+    // первому отказу — он двусмысленный, см. WifiFacts::refusedNewNetwork.
+    bool refusedEnough =
+        facts.refusedNewNetwork && (!cfg_.refusedAttempts || fails_ >= cfg_.refusedAttempts);
+    if (!facts.apActive && (refusedEnough || nowMs - lostSinceMs_ >= cfg_.apAfterMs))
         return WifiAction::StartAp;
 
     if (attemptActive_) return WifiAction::None;

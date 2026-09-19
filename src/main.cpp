@@ -194,7 +194,7 @@ void setup() {
     app.otaError = storage::loadOtaError();
 
     if (app.safeMode) {
-        Log.printf("УСЕЧЁННЫЙ РЕЖИМ: %u загрузок подряд не дожили до пяти минут\n",
+        Log.printf("УСЕЧЁННЫЙ РЕЖИМ: %u загрузок подряд не дожили до минуты\n",
                    bootGuard.bootCount());
         Log.println("Опрос счётчика и прозрачный serial выключены. Залейте прошивку на /update");
     }

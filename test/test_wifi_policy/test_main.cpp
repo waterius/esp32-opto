@@ -121,20 +121,26 @@ void test_ap_comes_up_after_two_minutes_without_router() {
     TEST_ASSERT_TRUE_MESSAGE(w.apActive, "точка доступа не поднялась через две минуты");
 }
 
-// Пароль ввели неверно: отказ роутера виден за секунду, и точка доступа нужна
-// сразу — иначе вернуться на страницу /wifi будет неоткуда две минуты.
-void test_refused_new_network_raises_ap_at_once() {
+// Пароль ввели неверно — точка доступа нужна раньше двух минут, иначе вернуться
+// на страницу /wifi будет неоткуда. Но и по первому отказу сдаваться нельзя:
+// причина 15 приходит и при неверном пароле, и когда кадры рукопожатия теряются
+// на слабом сигнале. Три попытки — примерно 45 секунд.
+void test_refused_network_gets_three_attempts_before_ap() {
     FakeWifi w;
     w.routerUp = false;
+    w.refusedNew = true;  // ARDUINO_EVENT_WIFI_STA_DISCONNECTED с AUTH_FAIL
     w.start();
-    w.run(5 * SEC);
-    TEST_ASSERT_FALSE(w.apActive);
 
-    w.refusedNew = true;  // пришло ARDUINO_EVENT_WIFI_STA_DISCONNECTED с AUTH_FAIL
-    w.run(1 * SEC);
+    w.run(20 * SEC);
+    TEST_ASSERT_FALSE_MESSAGE(w.apActive, "сдались раньше трёх попыток");
+    int early = w.count(WifiAction::ConnectFast) + w.count(WifiAction::ConnectScan);
+    TEST_ASSERT_TRUE_MESSAGE(early >= 2, "вторая попытка не состоялась");
 
-    TEST_ASSERT_TRUE_MESSAGE(w.apActive, "отказ роутера не поднял точку доступа сразу");
-    TEST_ASSERT_TRUE_MESSAGE(w.now < 10 * SEC, "точка доступа поднялась слишком поздно");
+    w.run(40 * SEC);
+    TEST_ASSERT_TRUE_MESSAGE(w.apActive, "точка доступа не поднялась после трёх отказов");
+    TEST_ASSERT_TRUE_MESSAGE(w.now < 75 * SEC, "точка доступа поднялась слишком поздно");
+    int tries = w.count(WifiAction::ConnectFast) + w.count(WifiAction::ConnectScan);
+    TEST_ASSERT_TRUE_MESSAGE(tries >= 3, "до точки доступа сделали меньше трёх попыток");
 }
 
 // Отказ роутера держится, пока сеть не сменят, — и не должен превращаться в
@@ -148,9 +154,9 @@ void test_refused_network_does_not_spin() {
 
     int attempts = w.count(WifiAction::ConnectFast) + w.count(WifiAction::ConnectScan);
     TEST_ASSERT_TRUE_MESSAGE(attempts > 0, "перестали пробовать совсем");
-    // Попытка (20 с) плюс пауза при поднятой точке доступа (60 с) — около 7 за
-    // десять минут; с запасом на случай правки констант
-    TEST_ASSERT_TRUE_MESSAGE(attempts <= 12, "подключение повторяется слишком часто");
+    // До точки доступа три попытки по 10 с с паузой 5 с, дальше попытка (10 с)
+    // плюс пауза при поднятой точке (60 с) — около 11 за десять минут
+    TEST_ASSERT_TRUE_MESSAGE(attempts <= 16, "подключение повторяется слишком часто");
 }
 
 // А вот у сети, которая уже работала, разрыв — обычное дело (роутер
@@ -324,7 +330,7 @@ int main() {
     RUN_TEST(test_radio_is_restarted_after_several_failures);
     RUN_TEST(test_radio_restart_is_followed_by_a_connect_attempt);
     RUN_TEST(test_ap_comes_up_after_two_minutes_without_router);
-    RUN_TEST(test_refused_new_network_raises_ap_at_once);
+    RUN_TEST(test_refused_network_gets_three_attempts_before_ap);
     RUN_TEST(test_refused_network_does_not_spin);
     RUN_TEST(test_working_network_does_not_raise_ap_early);
     RUN_TEST(test_ap_goes_down_when_router_returns);
