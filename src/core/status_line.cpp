@@ -112,6 +112,12 @@ size_t formatStatus(const StatusFacts& facts, char* out, size_t cap) {
 
     key(w, "wifi");
     w.raw(wifiModeName(facts.wifi));
+    // Имя раздаваемой точки: в режиме ap именно его ищут в списке сетей,
+    // и путать его с сетью, к которой подключаемся, нельзя
+    key(w, "ap");
+    quoted(w, facts.apName, STATUS_AP_CAP);
+    key(w, "apch");
+    u32(w, facts.apChannel);
     key(w, "ssid");
     quoted(w, facts.ssid, STATUS_SSID_CAP);
     key(w, "ip");

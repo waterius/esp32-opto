@@ -36,6 +36,7 @@ bool linkAlive();
 // где шлюз не отвечает на ICMP.
 bool linkGuardArmed();
 bool apActive();
+uint8_t apChannel();  // канал раздаваемой точки; 0 — точки нет
 Status status();
 const char* error();  // причина отказа для страницы /wifi; пусто — отказа не было
 const char* modeName();  // "STA", "AP", "AP+STA"

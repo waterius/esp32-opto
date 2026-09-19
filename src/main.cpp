@@ -118,6 +118,8 @@ void statusLine() {
     f.safeMode = app.safeMode;
 
     f.wifi = wifiMode();
+    f.apName = net::apActive() ? net::apName() : "";
+    f.apChannel = net::apChannel();
     f.ssid = app.sett.ssid;
     String ip = net::ip();
     f.ip = ip.c_str();

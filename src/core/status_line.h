@@ -26,6 +26,7 @@ const size_t STATUS_CAP = 640;
 // Пределы текстовых полей: строка укладывается в STATUS_CAP арифметикой, а не
 // обрезкой целиком — обрезка целиком оставила бы незакрытую кавычку.
 const size_t STATUS_SSID_CAP = 32;
+const size_t STATUS_AP_CAP = 32;
 const size_t STATUS_BOOT_CAP = 72;
 const size_t STATUS_METER_ERROR_CAP = 96;
 const size_t STATUS_CLOUD_ERROR_CAP = 64;
@@ -50,7 +51,9 @@ struct StatusFacts {
 
     // сеть
     WifiMode wifi = WifiMode::Down;
-    const char* ssid = "";
+    const char* apName = "";   // имя раздаваемой точки; пусто — точки нет
+    uint8_t apChannel = 0;     // канал точки; 0 — точки нет
+    const char* ssid = "";     // сеть, к которой подключаемся
     const char* ip = "";  // пусто — адреса нет
     int rssi = 0;
     uint32_t drops = 0;

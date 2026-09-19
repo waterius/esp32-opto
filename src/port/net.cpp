@@ -31,6 +31,7 @@ const uint32_t PING_TIMEOUT_MS = 1500;
 WiFiClientSecure tls;
 char apName_[24] = "";
 bool ap_ = false;
+uint8_t apChannel_ = 0;
 bool wasConnected = false;
 bool fastConnectFresh = false;
 bool rebootWanted = false;
@@ -61,7 +62,7 @@ const char* reasonName(uint16_t reason) {
         case 2: return "истёк срок аутентификации";
         case 4: return "роутер не дождался активности";
         case 8: return "роутер разорвал ассоциацию";
-        case 15: return "не сошёлся пароль (4-way handshake)";
+        case 15: return "рукопожатие не завершилось — неверный пароль или слабый сигнал";
         case 200: return "слабый сигнал";
         case 201: return "сеть не найдена";
         case 202: return "аутентификация отклонена";
@@ -133,18 +134,28 @@ bool pingGateway(bool& possible) {
     return pingReplied.load();
 }
 
-void softApUp(const core::Settings& s) {
+// Возвращает false, если SDK точку не поднял. Проверять обязательно: раньше
+// прошивка ставила флаг вслепую и уверяла, что точка есть, когда её не было, —
+// а искать в эфире несуществующую сеть можно очень долго.
+bool softApUp(const core::Settings& s) {
     // Одно радио на оба режима: канал AP = канал роутера; 0 SDK не принимает (waterius ap_channel)
     uint8_t channel = s.channel >= 1 && s.channel <= 13 ? s.channel : 1;
-    WiFi.softAP(apName_, nullptr, channel, 0, 4);
+    if (WiFi.softAP(apName_, nullptr, channel, 0, 4)) {
+        apChannel_ = channel;
+        return true;
+    }
+    apChannel_ = 0;
+    Log.error("Wi-Fi: точку доступа %s поднять НЕ УДАЛОСЬ\n", apName_);
+    return false;
 }
 
 void startAp(const core::Settings& s) {
     WiFi.mode(s.ssid[0] ? WIFI_AP_STA : WIFI_AP);
     WiFi.setSleep(false);
-    softApUp(s);
-    ap_ = true;
-    Log.printf("Wi-Fi: точка доступа %s, http://192.168.4.1\n", apName_);
+    ap_ = softApUp(s);
+    if (ap_)
+        Log.printf("Wi-Fi: точка доступа %s, канал %u, http://192.168.4.1\n", apName_,
+                   (unsigned)apChannel_);
 }
 
 void stopAp() {
@@ -152,6 +163,7 @@ void stopAp() {
     WiFi.mode(WIFI_STA);
     WiFi.setSleep(false);
     ap_ = false;
+    apChannel_ = 0;
     Log.println("Wi-Fi: точка доступа выключена");
 }
 
@@ -196,7 +208,7 @@ void restartRadio(const core::Settings& s) {
     WiFi.mode(ap_ ? WIFI_AP_STA : WIFI_STA);
     WiFi.setSleep(false);
     WiFi.setHostname(apName_);
-    if (ap_) softApUp(s);
+    if (ap_) ap_ = softApUp(s);  // после WIFI_OFF точку надо поднимать заново
 }
 
 void applyAction(core::WifiAction action, const core::Settings& s) {
@@ -354,7 +366,9 @@ bool connected() { return driverConnected() && !link.dead(); }
 
 bool linkAlive() { return !link.dead(); }
 bool linkGuardArmed() { return link.armed(); }
-bool apActive() { return ap_; }
+// Флага мало: SDK мог точку не поднять или снять её при смене режима
+bool apActive() { return ap_ && (WiFi.getMode() & WIFI_MODE_AP) != 0; }
+uint8_t apChannel() { return apActive() ? apChannel_ : 0; }
 
 const char* error() { return error_; }
 
