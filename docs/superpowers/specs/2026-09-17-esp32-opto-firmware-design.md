@@ -35,6 +35,8 @@ OTA обязателен на обеих платах. Картинок во ф�
 | `opto_port.h` | `IOptoPort` (configure / write / read / available / flushInput), `SerialCfg`, `nowMs()`, `sleepMs()` |
 | `meter.h` | `IMeter`, `MeterData` |
 | `settings.h` | модель настроек |
+| `settings_io.*` | настройки ↔ JSON для NVS, цепочка апгрейдов версий |
+| `settings_v4.h` | замороженная раскладка блоба прежних прошивок; удаляется, когда его не останется на платах |
 | `nartis.*` | адаптер НАРТИС поверх GuruxDLMS.c |
 | `cloud.*` | тело запроса в Waterius на ArduinoJson |
 
@@ -328,9 +330,12 @@ mDNS нет. В режиме STA адрес устройства смотрит�
   переживают перезагрузку.
 - Удержание BOOT 5 секунд — сброс к умолчаниям (GPIO0 на S3, GPIO9 на C3).
 
-Поля `Settings`: `ssid`, `pass`, `bssid`, `channel`; `serial` (baud, bits,
-parity, stop); `meterEnabled`, `meterAddr`, `meterPwd`; `periodMin`, `host`, `key`, `email`;
-`rfcEnabled`, `rfcPort`.
+Поля `Settings`: `ssid`, `pass`, `bssid`, `channel`; `ip`, `gateway`, `mask`,
+`dns` (0 в `ip` — DHCP); `rebootMin`; `serial` (baud, bits, parity, stop);
+`meterEnabled`, `meterAddr`, `meterPwd`; `periodMin`, `host`, `key`, `email`;
+`totalType`, `tariffType[]` (коды `data_type`, `DT_NONE` — не отправлять);
+`rfcEnabled`, `rfcPort`. Поля версии в структуре нет: в памяти версия всегда
+текущая, в записи за неё отвечает ключ `v`.
 
 ## 10. Прозрачный serial
 

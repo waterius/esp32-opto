@@ -132,7 +132,11 @@ GND            ── GND переходника
 `Log.begin()` — первая строка `setup()`, а `storage::loadSettings()` сильно
 ниже, так что ранний лог в любом случае шёл бы по умолчаниям. Метод
 `Log.setLevels()` есть, но из `setup()` не вызывается. Если пороги когда-нибудь
-переедут в `core::Settings`, надо поднять `SETTINGS_VERSION`.
+переедут в `core::Settings`, поднимать `SETTINGS_VERSION` не понадобится: это
+новые поля, а запись в NVS самоописательная — на старых платах они просто
+возьмут умолчание (`docs/10-architecture.md`, «Миграция»). Понадобится другое —
+решить, что делать с ранним логом: пороги из настроек доедут только к
+`storage::loadSettings()`, сильно позже первой строки.
 
 ## Единица записи — целая строка
 
@@ -185,7 +189,7 @@ GND            ── GND переходника
 ## Строка состояния
 
 ```
-[3725.412] status fw=0.2.0 up=3725 heap=142312 boot="сторож главного цикла" safe=0 wifi=ap+sta ap="esp32-opto-926C" apch=5 ssid="Дача" ip=192.168.1.42 rssi=-67 drops=3 offline=0 bus=transparent port=9600-8N1 rfc=1 read=1 total=12345.678 merr="" mnext=284 code=200 cerr="" cnext=284
+[3725.412] status fw=0.3.0 up=3725 heap=142312 boot="сторож главного цикла" safe=0 wifi=ap+sta ap="esp32-opto-926C" apch=5 apcfg=5 apcli=1 ssid="Дача" ip=192.168.1.42 rssi=-67 drops=3 offline=0 bus=transparent port=9600-8N1 rfc=1 read=1 total=12345.678 merr="" mnext=284 code=200 cerr="" cnext=284
 ```
 
 Одна строка, раз в 5 секунд, уровень `trace`. Порядок полей фиксированный: кто
@@ -200,7 +204,9 @@ GND            ── GND переходника
 | `safe` | усечённый режим | `app.safeMode` |
 | `wifi` | `off` / `search` / `sta` / `ap` / `ap+sta` | `core::WifiMode` |
 | `ap` | имя **раздаваемой** точки; `""` — точки нет | `net::apName()` |
-| `apch` | канал раздаваемой точки; `0` — точки нет | `net::apChannel()` |
+| `apch` | **рабочий канал радио**; `0` — точки нет | `net::apChannel()` |
+| `apcfg` | канал из конфига точки; расхождение с `apch` — точки нет в эфире | `net::apConfigChannel()` |
+| `apcli` | сколько клиентов сидит на точке | `net::apClients()` |
 | `ssid` | сеть, к которой **подключаемся** | `app.sett.ssid` |
 | `ip` | адрес; `-` если нет | `net::ip()` |
 | `rssi` | дБм | `net::rssi()` |
