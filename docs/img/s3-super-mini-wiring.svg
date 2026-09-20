@@ -1,9 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 470" width="980" height="470" font-family="Helvetica, Arial, sans-serif">
-  <rect width="980" height="470" fill="#ffffff"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 500" width="980" height="500" font-family="Helvetica, Arial, sans-serif">
+  <rect width="980" height="500" fill="#ffffff"/>
   <text x="20" y="34" font-size="20" font-weight="700" fill="#232323">ESP32-S3 Super Mini: что куда подключать</text>
 
   <!-- головка -->
-  <rect x="20" y="60" width="250" height="380" rx="10" fill="#f7f7f7" stroke="#ccc"/>
+  <rect x="20" y="60" width="250" height="400" rx="10" fill="#f7f7f7" stroke="#ccc"/>
   <text x="145" y="86" font-size="15" font-weight="700" fill="#232323" text-anchor="middle">Оптоголовка RIXUTECH</text>
   <text x="145" y="106" font-size="12" fill="#666" text-anchor="middle">площадки J1 — со стороны кабеля</text>
 
@@ -12,13 +12,13 @@
   <text x="40" y="216" font-size="14" fill="#232323">J1 D+</text>
   <text x="40" y="251" font-size="14" fill="#232323">J1 GND</text>
   <line x1="36" y1="270" x2="254" y2="270" stroke="#ddd"/>
-  <text x="40" y="300" font-size="14" fill="#232323">ИК-диод, катод</text>
-  <text x="40" y="318" font-size="12" fill="#666">провод прямо с вывода</text>
-  <text x="40" y="348" font-size="14" fill="#232323">ИК-диод, анод</text>
-  <text x="40" y="366" font-size="12" fill="#666">через 180 Ом на плате головки</text>
+  <text x="40" y="300" font-size="14" fill="#232323">R6, левая площадка</text>
+  <text x="40" y="318" font-size="12" fill="#666">через R6 в катод диода</text>
+  <text x="40" y="348" font-size="14" fill="#232323">площадка диода (сторона R7)</text>
+  <text x="40" y="366" font-size="12" fill="#666">анод, питание диода</text>
   <text x="40" y="396" font-size="14" fill="#232323">V2, одиночная ножка</text>
   <text x="40" y="414" font-size="12" fill="#666">с фототранзистора</text>
-  <text x="40" y="434" font-size="11" fill="#F53410">4 разреза: D−, D+, 180 Ом↔+5 В, диод↔V3</text>
+  <text x="40" y="434" font-size="11" fill="#F53410">4 разреза: D−, D+, R6↔отверстие, R7↔диод</text>
 
   <!-- вилка -->
   <rect x="380" y="110" width="150" height="160" rx="10" fill="#f7f7f7" stroke="#ccc"/>
@@ -30,7 +30,7 @@
   <text x="400" y="261" font-size="13" fill="#232323">GND</text>
 
   <!-- плата -->
-  <rect x="700" y="60" width="250" height="380" rx="10" fill="#f7f7f7" stroke="#ccc"/>
+  <rect x="700" y="60" width="250" height="400" rx="10" fill="#f7f7f7" stroke="#ccc"/>
   <text x="825" y="86" font-size="15" font-weight="700" fill="#232323" text-anchor="middle">ESP32-S3 Super Mini</text>
   <rect x="770" y="100" width="110" height="34" rx="6" fill="#e8eeff" stroke="#1655F5"/>
   <text x="825" y="122" font-size="13" fill="#1655F5" text-anchor="middle">разъём USB-C</text>
@@ -44,6 +44,7 @@
   <text x="716" y="396" font-size="14" font-weight="700" fill="#232323">пин 17</text>
   <text x="716" y="414" font-size="12" fill="#666">OPTO_RX_PIN</text>
   <text x="716" y="434" font-size="11" fill="#666">5 В и земля — по той же вилке</text>
+  <text x="716" y="452" font-size="11" fill="#1655F5">GPIO43 — дубль лога, USB-TTL 115200</text>
 
   <!-- линии головка → вилка -->
   <path d="M270 141 H 330 V 181 H 380" fill="none" stroke="#d33" stroke-width="2.5"/>
@@ -67,5 +68,5 @@
   <polygon points="270,390 280,385 280,395" fill="#b0179b"/>
   <text x="470" y="382" font-size="12" fill="#b0179b" text-anchor="middle">RX: фототранзистор → ESP32</text>
 
-  <text x="20" y="462" font-size="12" fill="#666">Схема, а не фотография: у клонов Super Mini набор выведенных пинов разный — если 17 и 18 не выведены, взять любые свободные.</text>
+  <text x="20" y="490" font-size="12" fill="#666">Схема, а не фотография: у клонов Super Mini набор выведенных пинов разный — если 17 и 18 не выведены, взять любые свободные.</text>
 </svg>
