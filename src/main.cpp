@@ -49,8 +49,8 @@ void applyPendingSettings() {
     bool meterTurnedOff = !next.meterEnabled && app.sett.meterEnabled;
     bool reboot = core::needsRestart(next, app.sett);
     app.sett = next;
-    storage::saveSettings(app.sett);
-    Log.println("Настройки сохранены");
+    if (storage::saveSettings(app.sett)) Log.println("Настройки сохранены");
+    else Log.error("Настройки не сохранились: после перезагрузки вернутся прежние\n");
     if (meterTurnedOn) poller::onMeterEnabled();
     // Иначе после ручного выключения тумблера страница показывает старую причину
     // ошибки (например, отказ пароля), хотя опрос выключен пользователем, не счётчиком.
