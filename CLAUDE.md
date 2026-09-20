@@ -239,7 +239,7 @@ USB-Serial/JTAG (в частности, почему `setTxTimeoutMs(0)` опа�
 - Для электросчётчика подходит эндпоинт **`POST /api/source/iz/`**
   (`apps/source/api.py`, `IZSerializer` в `apps/source/serializers.py`),
   а не `/api/source/waterius/`, который рассчитан на импульсные каналы.
-  Хост по умолчанию — `https://cloud.waterius.ru`. Устройство
+  Хост по умолчанию — `https://iz.waterius.ru`. Устройство
   опознаётся по полю `key` в теле (4–40 символов). Waterius дополнительно
   шлёт заголовки `Waterius-Token` и `Waterius-Email`.
 - Поля: `total`, `total1`…`total4`, `data_type`, `data_type1`…`4`,
