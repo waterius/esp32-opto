@@ -21,7 +21,7 @@ const char* KEY_FAST = "fast";
 const char* KEY_BOOTS = "boots";
 const char* KEY_RESTART = "restart";
 
-// Пара для быстрого коннекта — отдельно от блоба настроек, см. storage.h
+// Пара для быстрого коннекта — отдельно от записи настроек, см. storage.h
 struct StoredFastConnect {
     uint8_t channel;
     uint8_t bssid[6];
