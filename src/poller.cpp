@@ -105,7 +105,8 @@ void readMeter() {
             snprintf(app.meterError, sizeof(app.meterError), "%s", error);
             core::utf8Truncate(app.meterError);
             app.sett.meterEnabled = false;
-            storage::saveSettings(app.sett);
+            if (!storage::saveSettings(app.sett))
+                Log.error("Настройки не сохранились: после перезагрузки опрос снова включится\n");
             Log.error("Счётчик: %s, опрос выключен\n", error);
             break;
         case core::ReadResult::Aborted:

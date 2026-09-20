@@ -4,10 +4,16 @@
 
 #include <string.h>
 
+#include "../core/settings_io.h"
+#include "../core/settings_v4.h"
+#include "log.h"
+
 namespace storage {
 namespace {
 
 const char* NS = "opto";
+const char* KEY_CFG = "cfg";
+// Блоб настроек прежних прошивок. Читается один раз, при переносе на `cfg`.
 const char* KEY_SETTINGS = "settings";
 const char* KEY_READING = "reading";
 const char* KEY_OTA_ERROR = "ota_error";
@@ -20,6 +26,9 @@ struct StoredFastConnect {
     uint8_t channel;
     uint8_t bssid[6];
 };
+
+// Записи настроек с запасом: предельные настройки занимают 971 байт.
+const size_t CFG_CAP = 1536;
 
 struct StoredReading {
     core::MeterData data;
@@ -42,23 +51,105 @@ void saveBlob(const char* key, const void* src, size_t size) {
     p.end();
 }
 
+void removeKey(const char* key) {
+    Preferences p;
+    if (!p.begin(NS, false)) return;
+    p.remove(key);
+    p.end();
+}
+
+// Канал и BSSID лежат отдельным ключом и выигрывают у записи настроек: роуминг
+// переписывает только их, а в `cfg` пара могла остаться прошлая.
+void applyFastConnect(core::Settings& s) {
+    StoredFastConnect fast;
+    if (!loadBlob(KEY_FAST, &fast, sizeof(fast))) return;
+    s.channel = fast.channel;
+    memcpy(s.bssid, fast.bssid, sizeof(s.bssid));
+}
+
+// Разовый перенос блоба прежних прошивок. Старый ключ удаляется только после
+// подтверждённой записи нового: иначе сбой записи стёр бы настройки насовсем.
+bool migrateFromV4(core::Settings& s) {
+    size_t len = 0;
+    {
+        Preferences p;
+        if (p.begin(NS, true)) {
+            len = p.getBytesLength(KEY_SETTINGS);
+            p.end();
+        }
+    }
+    if (!len) return false;  // записи прежних прошивок нет — плата чистая
+
+    core::SettingsV4 v4;
+    if (len != sizeof(v4) || !loadBlob(KEY_SETTINGS, &v4, sizeof(v4)) || v4.version != 4) {
+        Log.warn("Настройки: запись `settings` (%u байт) не читается, беру умолчания\n",
+                 (unsigned)len);
+        return false;
+    }
+    core::fromV4(v4, s);
+    if (!saveSettings(s)) {
+        Log.error("Настройки: формат 4 прочитан, но не сохранился — старая запись цела\n");
+        return true;  // настройки всё равно в руках, перенос повторится на следующей загрузке
+    }
+    removeKey(KEY_SETTINGS);
+    Log.info("Настройки перенесены из формата 4\n");
+    return true;
+}
+
 }  // namespace
 
 void loadSettings(core::Settings& s) {
-    core::Settings stored;
-    if (loadBlob(KEY_SETTINGS, &stored, sizeof(stored)) && stored.version == core::SETTINGS_VERSION) {
-        s = stored;
-    } else {
-        s = core::Settings();
+    s = core::Settings();
+
+    String cfg;
+    {
+        Preferences p;
+        if (p.begin(NS, true)) {
+            cfg = p.getString(KEY_CFG, String());
+            p.end();
+        }
     }
-    StoredFastConnect fast;
-    if (loadBlob(KEY_FAST, &fast, sizeof(fast))) {
-        s.channel = fast.channel;
-        memcpy(s.bssid, fast.bssid, sizeof(s.bssid));
+
+    if (cfg.length()) {
+        switch (core::settingsFromJson(cfg.c_str(), cfg.length(), s)) {
+            case core::LoadResult::Ok:
+                Log.info("Настройки загружены\n");
+                break;
+            case core::LoadResult::Migrated:
+                // Цепочка апгрейдов что-то сделала — закрепляем результат сразу,
+                // иначе она будет гоняться на каждой загрузке
+                Log.info("Настройки подняты до версии %u\n", (unsigned)core::SETTINGS_VERSION);
+                if (!saveSettings(s)) Log.error("Настройки: поднятую версию не удалось сохранить\n");
+                break;
+            case core::LoadResult::FromFuture:
+                // Откат прошивки: перезаписывать запись нельзя, в ней поля,
+                // которых эта прошивка не знает
+                Log.warn("Настройки новее прошивки, прочитано только понятное\n");
+                break;
+            case core::LoadResult::Defaults:
+                Log.warn("Настройки не разбираются, беру умолчания\n");
+                break;
+        }
+    } else if (!migrateFromV4(s)) {
+        Log.info("Настроек в памяти нет, беру умолчания\n");
     }
+
+    applyFastConnect(s);
 }
 
-void saveSettings(const core::Settings& s) { saveBlob(KEY_SETTINGS, &s, sizeof(s)); }
+bool saveSettings(const core::Settings& s) {
+    // Буфера хватает на самые длинные настройки, какие можно ввести на
+    // странице (замер — test/test_settings)
+    char json[CFG_CAP];
+    size_t n = core::settingsToJson(s, json, sizeof(json));
+    if (!n) return false;  // не поместилось: обрезанный JSON не разберётся, старую запись не трогаем
+
+    Preferences p;
+    if (!p.begin(NS, false)) return false;
+    size_t written = p.putString(KEY_CFG, json);
+    p.end();
+    return written == n;
+}
 
 void saveFastConnect(const core::Settings& s) {
     StoredFastConnect fast;
