@@ -12,11 +12,13 @@
   <text x="40" y="216" font-size="14" fill="#232323">J1 D+</text>
   <text x="40" y="251" font-size="14" fill="#232323">J1 GND</text>
   <line x1="36" y1="270" x2="254" y2="270" stroke="#ddd"/>
-  <text x="40" y="306" font-size="14" fill="#232323">R2, правая площадка</text>
-  <text x="40" y="324" font-size="12" fill="#666">в ИК-диод</text>
-  <text x="40" y="366" font-size="14" fill="#232323">V2, одиночная ножка</text>
-  <text x="40" y="384" font-size="12" fill="#666">с фототранзистора</text>
-  <text x="40" y="420" font-size="12" fill="#F53410">3 разреза: D−, D+ и TXD→R2</text>
+  <text x="40" y="300" font-size="14" fill="#232323">ИК-диод, катод</text>
+  <text x="40" y="318" font-size="12" fill="#666">провод прямо с вывода</text>
+  <text x="40" y="348" font-size="14" fill="#232323">ИК-диод, анод</text>
+  <text x="40" y="366" font-size="12" fill="#666">через 180 Ом на плате головки</text>
+  <text x="40" y="396" font-size="14" fill="#232323">V2, одиночная ножка</text>
+  <text x="40" y="414" font-size="12" fill="#666">с фототранзистора</text>
+  <text x="40" y="434" font-size="11" fill="#F53410">4 разреза: D−, D+, 180 Ом↔+5 В, диод↔V3</text>
 
   <!-- вилка -->
   <rect x="380" y="110" width="150" height="160" rx="10" fill="#f7f7f7" stroke="#ccc"/>
@@ -35,11 +37,13 @@
   <text x="825" y="152" font-size="12" fill="#666" text-anchor="middle">вилка вставляется сюда</text>
   <text x="825" y="170" font-size="12" fill="#666" text-anchor="middle">GPIO18 = D−, GPIO19 = D+</text>
 
-  <text x="716" y="306" font-size="14" font-weight="700" fill="#232323">пин 5</text>
-  <text x="716" y="324" font-size="12" fill="#666">OPTO_TX_PIN</text>
-  <text x="716" y="366" font-size="14" font-weight="700" fill="#232323">пин 4</text>
-  <text x="716" y="384" font-size="12" fill="#666">OPTO_RX_PIN</text>
-  <text x="716" y="420" font-size="12" fill="#666">питание — по той же вилке</text>
+  <text x="716" y="300" font-size="14" font-weight="700" fill="#232323">пин 5</text>
+  <text x="716" y="318" font-size="12" fill="#666">OPTO_TX_PIN</text>
+  <text x="716" y="348" font-size="14" font-weight="700" fill="#232323">пин 3V3</text>
+  <text x="716" y="366" font-size="12" fill="#666">ток диода 13 мА</text>
+  <text x="716" y="396" font-size="14" font-weight="700" fill="#232323">пин 4</text>
+  <text x="716" y="414" font-size="12" fill="#666">OPTO_RX_PIN</text>
+  <text x="716" y="434" font-size="11" fill="#666">5 В и земля — по той же вилке</text>
 
   <!-- линии головка → вилка -->
   <path d="M270 141 H 330 V 181 H 380" fill="none" stroke="#d33" stroke-width="2.5"/>
@@ -52,13 +56,16 @@
   <polygon points="770,117 760,112 760,122" fill="#1655F5"/>
 
   <!-- опто -->
-  <path d="M270 300 H 480 V 300 H 700" fill="none" stroke="#b0179b" stroke-width="2.5"/>
-  <polygon points="700,300 690,295 690,305" fill="#b0179b"/>
-  <text x="470" y="292" font-size="12" fill="#b0179b" text-anchor="middle">TX: ESP32 → ИК-диод</text>
+  <path d="M270 294 H 480 V 294 H 700" fill="none" stroke="#b0179b" stroke-width="2.5"/>
+  <polygon points="700,294 690,289 690,299" fill="#b0179b"/>
+  <text x="470" y="286" font-size="12" fill="#b0179b" text-anchor="middle">TX: GPIO гасит и зажигает диод</text>
 
-  <path d="M270 360 H 480 V 360 H 700" fill="none" stroke="#b0179b" stroke-width="2.5"/>
-  <polygon points="270,360 280,355 280,365" fill="#b0179b"/>
-  <text x="470" y="352" font-size="12" fill="#b0179b" text-anchor="middle">RX: фототранзистор → ESP32</text>
+  <path d="M270 342 H 480 V 342 H 700" fill="none" stroke="#d33" stroke-width="2.5"/>
+  <text x="470" y="334" font-size="12" fill="#d33" text-anchor="middle">3,3 В — питание диода, не 5 В</text>
+
+  <path d="M270 390 H 480 V 390 H 700" fill="none" stroke="#b0179b" stroke-width="2.5"/>
+  <polygon points="270,390 280,385 280,395" fill="#b0179b"/>
+  <text x="470" y="382" font-size="12" fill="#b0179b" text-anchor="middle">RX: фототранзистор → ESP32</text>
 
   <text x="20" y="462" font-size="12" fill="#666">Схема, а не фотография: у клонов Super Mini подписи пинов отличаются — сверяйтесь с шелкографией своей платы.</text>
 </svg>

@@ -120,6 +120,8 @@ void statusLine() {
     f.wifi = wifiMode();
     f.apName = net::apActive() ? net::apName() : "";
     f.apChannel = net::apChannel();
+    f.apCfgChannel = net::apConfigChannel();
+    f.apClients = net::apClients();
     f.ssid = app.sett.ssid;
     String ip = net::ip();
     f.ip = ip.c_str();

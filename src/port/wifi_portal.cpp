@@ -157,8 +157,17 @@ void redirectToPortal(AsyncWebServerRequest* request) { request->redirect(PORTAL
 }  // namespace
 
 void registerRoutes(AsyncWebServer& server) {
-    server.on("/api/networks", HTTP_GET, getNetworks);
-    server.on("/api/wifi", HTTP_POST, postWifi);
+    // Скан сетей и «Подключиться» — это действия человека, они продлевают окно
+    // портала. /api/wifi_status страница опрашивает сама, пока идёт попытка, и
+    // окно продлевать не должен — иначе открытая вкладка держала бы портал.
+    server.on("/api/networks", HTTP_GET, [](AsyncWebServerRequest* request) {
+        net::feedPortal();
+        getNetworks(request);
+    });
+    server.on("/api/wifi", HTTP_POST, [](AsyncWebServerRequest* request) {
+        net::feedPortal();
+        postWifi(request);
+    });
     server.on("/api/wifi_status", HTTP_GET, getWifiStatus);
 
     // Captive portal — проверки ОС из waterius active_point.cpp, только для клиентов AP

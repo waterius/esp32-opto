@@ -195,11 +195,90 @@ void test_ap_stays_up_while_a_client_is_connected() {
     TEST_ASSERT_TRUE(w.apActive);
 
     w.apBusy = true;  // кто-то открыл страницу настроек
-    w.routerUp = true;
-    w.run(5 * MIN);
+    w.portalFedMs = w.now;
+    w.routerUp = true;  // роутер вернулся в эфир прямо во время настройки
+    w.run(5 * MIN, SEC);
 
-    TEST_ASSERT_TRUE_MESSAGE(w.linkUp, "к роутеру не подключились");
+    // Роутер появился, но лезть к нему сейчас нельзя: радио одно, и попытка
+    // оборвала бы человеку сессию. Ждём либо явной команды со страницы, либо
+    // того, что портал бросят.
+    TEST_ASSERT_FALSE_MESSAGE(w.linkUp, "подключились к роутеру, оборвав настройку");
     TEST_ASSERT_TRUE_MESSAGE(w.apActive, "точку доступа погасили под ногами у настраивающего");
+
+    // Портал бросили — устройство обязано вернуться в сеть само
+    w.run(10 * MIN, SEC);
+    TEST_ASSERT_TRUE_MESSAGE(w.linkUp, "после брошенного портала в сеть так и не вернулись");
+}
+
+// Радио одно на оба режима: каждая попытка подключения уводит его в полный скан
+// и на канал роутера, обрывая сессию настройки. Пока портал занят — не ходим.
+void test_no_connect_attempts_while_someone_configures_over_ap() {
+    FakeWifi w;
+    w.routerUp = false;
+    w.start();
+    w.run(3 * MIN);
+    TEST_ASSERT_TRUE(w.apActive);
+
+    w.apBusy = true;  // кто-то открыл страницу настроек на точке доступа
+    int before = w.count(WifiAction::ConnectFast) + w.count(WifiAction::ConnectScan);
+
+    // Человек листает страницы: окно портала продлевается, попыток быть не должно
+    for (int i = 0; i < 20; ++i) {
+        w.portalFedMs = w.now;
+        w.run(30 * SEC, SEC);
+    }
+    int during = w.count(WifiAction::ConnectFast) + w.count(WifiAction::ConnectScan);
+    TEST_ASSERT_EQUAL_MESSAGE(before, during,
+                              "попытка подключения увела радио с канала точки под настраивающим");
+}
+
+// Забытый на точке телефон не должен оставить устройство офлайн навсегда:
+// выход — простой портала, а не лимит попыток. Так же устроен сторож портала
+// waterius: его кормят действия человека, а не опрос страницы состояния.
+// Кнопка «Подключиться» нажимается именно тогда, когда человек сидит на точке
+// доступа, — то есть ровно в том состоянии, где самостоятельные попытки
+// запрещены. Команда обязана пройти сквозь этот запрет, иначе портал бесполезен.
+void test_explicit_command_connects_even_under_a_portal_client() {
+    FakeWifi w;
+    w.routerUp = false;
+    w.start();
+    w.run(3 * MIN);
+    TEST_ASSERT_TRUE(w.apActive);
+
+    w.apBusy = true;
+    w.portalFedMs = w.now;  // человек только что нажал кнопку
+    w.routerUp = true;      // и ввёл верную сеть
+    int before = w.count(WifiAction::ConnectFast) + w.count(WifiAction::ConnectScan);
+
+    w.policy.requestConnect();
+    w.run(30 * SEC, SEC);
+
+    TEST_ASSERT_GREATER_THAN_MESSAGE(
+        before, w.count(WifiAction::ConnectFast) + w.count(WifiAction::ConnectScan),
+        "явная команда со страницы не пробилась сквозь запрет под клиентом точки");
+    TEST_ASSERT_TRUE_MESSAGE(w.linkUp, "по команде со страницы к роутеру так и не подключились");
+}
+
+void test_forgotten_portal_client_stops_blocking_after_idle() {
+    FakeWifi w;
+    w.routerUp = false;
+    w.start();
+    w.run(3 * MIN);
+    TEST_ASSERT_TRUE(w.apActive);
+
+    w.apBusy = true;
+    w.portalFedMs = w.now;  // последнее действие человека — сейчас
+    int before = w.count(WifiAction::ConnectFast) + w.count(WifiAction::ConnectScan);
+
+    w.run(9 * MIN, SEC);  // десять минут ещё не вышли
+    TEST_ASSERT_EQUAL_MESSAGE(before,
+                              w.count(WifiAction::ConnectFast) + w.count(WifiAction::ConnectScan),
+                              "лестница возобновилась раньше, чем портал признан брошенным");
+
+    w.run(5 * MIN, SEC);  // а теперь вышли
+    TEST_ASSERT_GREATER_THAN_MESSAGE(
+        before, w.count(WifiAction::ConnectFast) + w.count(WifiAction::ConnectScan),
+        "брошенный портал оставил устройство офлайн навсегда");
 }
 
 void test_radio_is_not_restarted_under_a_configuring_client() {
@@ -335,6 +414,9 @@ int main() {
     RUN_TEST(test_working_network_does_not_raise_ap_early);
     RUN_TEST(test_ap_goes_down_when_router_returns);
     RUN_TEST(test_ap_stays_up_while_a_client_is_connected);
+    RUN_TEST(test_no_connect_attempts_while_someone_configures_over_ap);
+    RUN_TEST(test_explicit_command_connects_even_under_a_portal_client);
+    RUN_TEST(test_forgotten_portal_client_stops_blocking_after_idle);
     RUN_TEST(test_radio_is_not_restarted_under_a_configuring_client);
     RUN_TEST(test_ap_only_when_no_network_configured);
     RUN_TEST(test_reboot_after_an_hour_without_network);

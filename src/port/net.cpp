@@ -3,6 +3,7 @@
 #include <HTTPClient.h>
 #include <WiFi.h>
 #include <esp_netif.h>
+#include <esp_wifi.h>
 #include <ping/ping_sock.h>
 
 #include <atomic>
@@ -38,6 +39,7 @@ bool rebootWanted = false;
 bool hasSsid_ = false;
 bool everConnected = false;  // с текущими настройками сети хоть раз подключились
 bool safeMode_ = false;
+std::atomic<uint32_t> portalFedMs_{0};  // когда человек последний раз трогал страницы
 char error_[64] = "";        // причина отказа для страницы /wifi (кириллица — 2 байта на букву)
 
 // Пишет колбэк событий SDK (задача event loop), читает loop().
@@ -137,11 +139,34 @@ bool pingGateway(bool& possible) {
 // Возвращает false, если SDK точку не поднял. Проверять обязательно: раньше
 // прошивка ставила флаг вслепую и уверяла, что точка есть, когда её не было, —
 // а искать в эфире несуществующую сеть можно очень долго.
+// Канал, на котором точка вообще сможет вещать. Радио у C3 одно, и если оно
+// уже стоит на канале роутера (а оно туда уезжает при каждой попытке
+// подключения), то поднимать точку на другом канале бессмысленно: конфиг будет
+// говорить одно, приёмопередатчик работать на другом, маяков в эфире не будет.
+uint8_t apChannelToUse(const core::Settings& s) {
+    uint8_t primary = 0;
+    wifi_second_chan_t second = WIFI_SECOND_CHAN_NONE;
+    if (esp_wifi_get_channel(&primary, &second) == ESP_OK && primary >= 1 && primary <= 13)
+        return primary;
+    if (s.channel >= 1 && s.channel <= 13) return s.channel;
+    return 1;  // 0 SDK не принимает (waterius ap_channel)
+}
+
 bool softApUp(const core::Settings& s) {
-    // Одно радио на оба режима: канал AP = канал роутера; 0 SDK не принимает (waterius ap_channel)
-    uint8_t channel = s.channel >= 1 && s.channel <= 13 ? s.channel : 1;
+    uint8_t channel = apChannelToUse(s);
     if (WiFi.softAP(apName_, nullptr, channel, 0, 4)) {
         apChannel_ = channel;
+        // Успех softAP() — это ещё не маяки в эфире. Печатаем то, что радио
+        // приняло на самом деле: канал, скрытость, предел клиентов.
+        wifi_config_t cfg = {};
+        uint8_t primary = 0;
+        wifi_second_chan_t second = WIFI_SECOND_CHAN_NONE;
+        esp_wifi_get_config(WIFI_IF_AP, &cfg);
+        esp_wifi_get_channel(&primary, &second);
+        Log.debug("Wi-Fi: точка в радио — ssid=\"%s\" канал=%u радиоканал=%u скрыта=%u макс=%u режим=%u\n",
+                  (const char*)cfg.ap.ssid, (unsigned)cfg.ap.channel, (unsigned)primary,
+                  (unsigned)cfg.ap.ssid_hidden, (unsigned)cfg.ap.max_connection,
+                  (unsigned)WiFi.getMode());
         return true;
     }
     apChannel_ = 0;
@@ -271,8 +296,52 @@ void begin(const core::Settings& s) {
     WiFi.setSleep(false);  // устройство всегда в сети
 }
 
+// Каждая попытка подключения уводит радио на канал роутера, а конфиг точки
+// остаётся на прежнем — и точка замолкает, оставаясь «поднятой» по всем флагам.
+// Возвращаем её на тот канал, где радио сейчас. Найдено на плате: точка стояла
+// на канале 1, радио ушло на 6, в эфире сети не было (см. docs/08-reliability).
+void followRadioChannel(const core::Settings& s) {
+    // Во время полного скана радио перебирает каналы каждые ~120 мс, и
+    // мгновенное расхождение — норма, а не повод переподнимать точку. Ждём,
+    // пока оно устоится, и не переносим чаще раза в 10 секунд: каждый вызов
+    // softAP() переинициализирует интерфейс и прерывает маяки, то есть лечение
+    // без выдержки было бы хуже болезни.
+    const uint32_t SETTLE_MS = 3000;
+    const uint32_t MOVE_GAP_MS = 10000;
+    static uint32_t mismatchSinceMs = 0;  // 0 — расхождения нет
+    static uint32_t lastMoveMs = 0;
+
+    if (!apActive()) {
+        mismatchSinceMs = 0;
+        return;
+    }
+    uint8_t primary = 0;
+    wifi_second_chan_t second = WIFI_SECOND_CHAN_NONE;
+    wifi_config_t cfg = {};
+    if (esp_wifi_get_channel(&primary, &second) != ESP_OK || !primary ||
+        esp_wifi_get_config(WIFI_IF_AP, &cfg) != ESP_OK || cfg.ap.channel == primary) {
+        mismatchSinceMs = 0;
+        return;
+    }
+
+    uint32_t now = millis();
+    if (!mismatchSinceMs) {
+        mismatchSinceMs = now | 1;  // 0 занят под «расхождения нет»
+        return;
+    }
+    if (now - mismatchSinceMs < SETTLE_MS) return;
+    if (lastMoveMs && now - lastMoveMs < MOVE_GAP_MS) return;
+
+    Log.warn("Wi-Fi: точка переезжает с канала %u на %u — радио ушло за роутером\n",
+             (unsigned)cfg.ap.channel, (unsigned)primary);
+    if (WiFi.softAP(apName_, nullptr, primary, 0, 4)) apChannel_ = primary;
+    mismatchSinceMs = 0;
+    lastMoveMs = now | 1;
+}
+
 void loop(const core::Settings& s) {
     applyPolicyConfig(s);
+    followRadioChannel(s);
     hasSsid_ = s.ssid[0] != 0;
     uint32_t now = millis();
 
@@ -341,6 +410,7 @@ void loop(const core::Settings& s) {
     facts.haveFastConnect = s.channel && hasBssid(s.bssid);
     facts.apActive = ap_;
     facts.apBusy = ap_ && WiFi.softAPgetStationNum() > 0;
+    facts.portalIdleMs = portalIdleMs();
     applyAction(policy.step(facts, now), s);
 }
 
@@ -356,7 +426,8 @@ void reconnect(const core::Settings& s) {
     lastReason_.store(0);
     link.reset(millis());
     linkDeadLogged = false;
-    policy.reset(millis());  // лестница начинается заново, попытка — сразу
+    policy.reset(millis());   // лестница начинается заново
+    policy.requestConnect();  // и попытка сразу, даже если человек сидит на точке
 }
 
 // Наружу — связь, подтверждённая делом. Мёртвый линк, который драйвер считает
@@ -368,7 +439,38 @@ bool linkAlive() { return !link.dead(); }
 bool linkGuardArmed() { return link.armed(); }
 // Флага мало: SDK мог точку не поднять или снять её при смене режима
 bool apActive() { return ap_ && (WiFi.getMode() & WIFI_MODE_AP) != 0; }
-uint8_t apChannel() { return apActive() ? apChannel_ : 0; }
+// Канал спрашиваем у радио, а не у своей переменной. В режиме AP+STA канал
+// точки обязан совпадать с каналом станции: подключение к роутеру уводит радио
+// на его канал, и точка уезжает следом. Своё сохранённое значение в этот момент
+// врёт — та же ошибка, что и флаг ap_, который мы уже чинили.
+uint8_t apChannel() {
+    if (!apActive()) return 0;
+    uint8_t primary = 0;
+    wifi_second_chan_t second = WIFI_SECOND_CHAN_NONE;
+    if (esp_wifi_get_channel(&primary, &second) == ESP_OK && primary) return primary;
+    return apChannel_;
+}
+
+// Канал, который радио приняло в конфиг точки. Отличается от apChannel()
+// намеренно: тот отдаёт рабочий канал приёмопередатчика. Расхождение этих двух
+// чисел и означает «точка поднята, а маяков нет».
+uint8_t apConfigChannel() {
+    if (!apActive()) return 0;
+    wifi_config_t cfg = {};
+    if (esp_wifi_get_config(WIFI_IF_AP, &cfg) != ESP_OK) return 0;
+    return cfg.ap.channel;
+}
+
+uint8_t apClients() { return apActive() ? WiFi.softAPgetStationNum() : 0; }
+
+// Окно портала. Продлевают только действия человека — открытие страниц,
+// сохранение формы, нажатия кнопок. Опрос /api/status и /api/log сюда
+// намеренно не входит: страницы опрашивают их сами раз в секунду, и открытая
+// вкладка держала бы портал вечно (та же причина, что в waterius, issue #305).
+// Пишется из задачи async_tcp, читается из loop() — отсюда atomic.
+void feedPortal() { portalFedMs_.store(millis()); }
+
+uint32_t portalIdleMs() { return millis() - portalFedMs_.load(); }
 
 const char* error() { return error_; }
 

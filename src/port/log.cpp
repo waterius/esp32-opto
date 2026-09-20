@@ -17,6 +17,15 @@ void LogSink::begin(unsigned long baud) {
     // сторожу цикла. Единица — это один тик (CONFIG_FREERTOS_HZ = 1000), после
     // которого драйвер сам считает хост отпавшим.
     Serial.setTxTimeoutMs(1);
+    // Дубль в UART0. Когда плата не на USB — на аккумуляторе, в щитке, у
+    // счётчика — снять лог нечем: Serial у нас USB-Serial/JTAG, и без хоста
+    // всё напечатанное выбрасывается. На ножках UART0 (у C3 GPIO21 — TX, у S3
+    // GPIO43) лог можно читать переходником USB-TTL в любой момент. Порт там
+    // всё равно занят: туда, мимо наших порогов, пишет отладка ядра Arduino.
+#if ARDUINO_USB_CDC_ON_BOOT
+    Serial0.setTxBufferSize(1024);  // как и у Serial — до begin()
+    Serial0.begin(baud);
+#endif
     bootId_ = esp_random();
     mutex_ = xSemaphoreCreateMutex();
 }
@@ -119,8 +128,16 @@ void LogSink::record(core::LogLevel level, const char* text, size_t len) {
 }
 
 void LogSink::put(core::LogRoute route, const uint8_t* data, size_t len) {
-    if (route == core::LogRoute::SerialOnly || route == core::LogRoute::Both)
+    if (route == core::LogRoute::SerialOnly || route == core::LogRoute::Both) {
         Serial.write(data, len);
+#if ARDUINO_USB_CDC_ON_BOOT
+        // Дубль по остаточному принципу: UART0 на 115200 отдаёт 11 КБ/с, а
+        // байты прозрачной сессии идут быстрее. Не влезло — выбрасываем кусок
+        // целиком. Ждать освобождения кольца нельзя: это ровно та ошибка, из-за
+        // которой setTxTimeoutMs(0) ронял плату по сторожу цикла.
+        if (Serial0.availableForWrite() >= (int)len) Serial0.write(data, len);
+#endif
+    }
     if (route != core::LogRoute::BufferOnly && route != core::LogRoute::Both) return;
     // total_ растёт только на принятых буфером байтах: иначе позиции from,
     // которыми страница лога дочитывает остаток, показывали бы в пустоту

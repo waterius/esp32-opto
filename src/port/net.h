@@ -36,7 +36,15 @@ bool linkAlive();
 // где шлюз не отвечает на ICMP.
 bool linkGuardArmed();
 bool apActive();
-uint8_t apChannel();  // канал раздаваемой точки; 0 — точки нет
+uint8_t apChannel();        // рабочий канал радио; 0 — точки нет
+uint8_t apConfigChannel();  // канал в конфиге точки; расходится с apChannel() — маяков нет
+uint8_t apClients();        // сколько клиентов подключено к точке
+
+// Продлить окно портала: вызывать из обработчиков, за которыми стоит действие
+// человека, и НЕ вызывать из опроса состояния и лога — иначе открытая вкладка
+// будет держать портал вечно.
+void feedPortal();
+uint32_t portalIdleMs();
 Status status();
 const char* error();  // причина отказа для страницы /wifi; пусто — отказа не было
 const char* modeName();  // "STA", "AP", "AP+STA"

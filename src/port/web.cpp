@@ -249,14 +249,25 @@ void getLog(AsyncWebServerRequest* request) {
 void begin() {
     if (!LittleFS.begin()) Log.error("LittleFS не смонтирован: залейте образ командой uploadfs\n");
 
+    // /api/status и /api/log окно портала НЕ продлевают: страницы опрашивают их
+    // сами раз в секунду, и открытая вкладка держала бы устройство в точке
+    // доступа вечно. Всё остальное — действия человека.
     server.on("/api/status", HTTP_GET, getStatus);
-    server.on("/api/settings", HTTP_GET, getSettings);
-    server.on("/api/settings", HTTP_POST, postSettings);
+    server.on("/api/settings", HTTP_GET, [](AsyncWebServerRequest* request) {
+        net::feedPortal();
+        getSettings(request);
+    });
+    server.on("/api/settings", HTTP_POST, [](AsyncWebServerRequest* request) {
+        net::feedPortal();
+        postSettings(request);
+    });
     server.on("/api/read", HTTP_POST, [](AsyncWebServerRequest* request) {
+        net::feedPortal();
         app.readNow.store(true);
         sendOk(request);
     });
     server.on("/api/send", HTTP_POST, [](AsyncWebServerRequest* request) {
+        net::feedPortal();
         app.sendNow.store(true);
         sendOk(request);
     });
@@ -275,7 +286,13 @@ void begin() {
         if (success) app.restartReason.store((uint8_t)core::RestartReason::OtaWeb);
     });
 
-    server.serveStatic("/", LittleFS, "/").setDefaultFile("index.html").setCacheControl("no-cache");
+    server.serveStatic("/", LittleFS, "/")
+        .setDefaultFile("index.html")
+        .setCacheControl("no-cache")
+        .setFilter([](AsyncWebServerRequest*) {
+            net::feedPortal();  // человек открыл страницу — портал нужен ему дальше
+            return true;
+        });
     server.onNotFound([](AsyncWebServerRequest* request) {
         // Клиент точки доступа открыл чужой адрес — ведём в настройку Wi-Fi
         if (ON_AP_FILTER(request)) request->redirect("http://192.168.4.1/wifi.html");

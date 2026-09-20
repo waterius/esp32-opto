@@ -118,6 +118,10 @@ size_t formatStatus(const StatusFacts& facts, char* out, size_t cap) {
     quoted(w, facts.apName, STATUS_AP_CAP);
     key(w, "apch");
     u32(w, facts.apChannel);
+    key(w, "apcfg");
+    u32(w, facts.apCfgChannel);
+    key(w, "apcli");
+    u32(w, facts.apClients);
     key(w, "ssid");
     quoted(w, facts.ssid, STATUS_SSID_CAP);
     key(w, "ip");
