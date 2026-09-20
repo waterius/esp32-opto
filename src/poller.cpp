@@ -122,6 +122,7 @@ void handleOta(const String& response) {
     core::OtaParse parsed = core::parseOta(response.c_str(), req);
     if (parsed == core::OtaParse::None) return;
     if (parsed == core::OtaParse::Error) {
+        Log.error("OTA: блок ota в ответе облака не разобран — обновление пропущено\n");
         app.otaError = core::OTA_ERR_PARSE;
         storage::saveOtaError(app.otaError);
         return;
@@ -164,9 +165,17 @@ void sendCloud() {
     String response;
     int code = net::postJson(app.sett, "/api/source/iz/", body, response);
     app.cloudCode = code;
-    // Итог обмена — одной строкой и с началом ответа: целиком запрос и ответ
-    // уже написал net::postJson на уровне debug.
-    Log.info("Облако: HTTP %d %.120s\n", code, response.c_str());
+    // Итог обмена одной строкой: целиком запрос и ответ уже написал
+    // net::postJson на уровне debug, здесь — вывод, чтобы при поднятом пороге
+    // буфера было видно, чем кончилось. Длина пишется числом, а обрезка
+    // помечается многоточием: без него оборванный на середине JSON читается
+    // как сломанная строка лога. Режем по границе буквы — в теле ошибки
+    // сервера бывает кириллица, а половинка буквы уже ломала страницу лога.
+    char head[121];
+    snprintf(head, sizeof(head), "%s", response.c_str());
+    core::utf8Truncate(head);
+    Log.info("Облако: HTTP %d, ответ %u байт%s%s%s\n", code, (unsigned)response.length(),
+             response.length() ? ": " : "", head, response.length() > strlen(head) ? "…" : "");
     if (code != 200) {
         snprintf(app.cloudError, sizeof(app.cloudError), code < 0 ? "нет соединения" : "сервер ответил ошибкой");
         if (sendFails < 255) ++sendFails;
