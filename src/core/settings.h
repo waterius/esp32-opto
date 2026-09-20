@@ -2,6 +2,8 @@
 #pragma once
 #include <stdint.h>
 
+#include "data_type.h"
+#include "meter.h"
 #include "opto_port.h"
 
 namespace core {
@@ -44,6 +46,13 @@ struct Settings {
     char host[64] = "https://iz.waterius.ru";
     char key[41] = "";
     char email[64] = "";
+
+    // Чем считать сумму и каждый из тарифов: значение равно полю data_type в
+    // запросе, DT_NONE — не отправлять. По умолчанию не уходит ничего: какой
+    // тариф дневной, а какой ночной, знает только человек, а неверный код
+    // испортит данные в облаке молча.
+    int8_t totalType = DT_NONE;
+    int8_t tariffType[MAX_TARIFFS] = {DT_NONE, DT_NONE, DT_NONE, DT_NONE};
 
     // Прозрачный serial
     bool rfcEnabled = true;

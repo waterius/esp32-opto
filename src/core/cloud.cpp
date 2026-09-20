@@ -8,22 +8,6 @@
 namespace core {
 namespace {
 
-// Коды типов данных Waterius (apps/source/api/api.py в waterius.site.back)
-const int DT_ELECTRICITY = 2;  // сумма
-const int DT_DAY = 5;          // T1
-const int DT_NIGHT = 6;        // T2
-const int DT_PEAK = 7;         // T3
-const int DT_HALF_PEAK = 8;    // T4
-
-int tariffDataType(uint8_t idx) {
-    switch (idx) {
-        case 0: return DT_DAY;
-        case 1: return DT_NIGHT;
-        case 2: return DT_PEAK;
-        default: return DT_HALF_PEAK;
-    }
-}
-
 bool parseImage(JsonVariantConst v, OtaImage& img) {
     if (v.isNull()) return true;  // секции может не быть
     const char* url = v["url"];
@@ -44,15 +28,22 @@ size_t buildCloudPayload(const MeterData& m, uint32_t readAt, const Settings& s,
     doc["key"] = s.key;
     doc["email"] = s.email;
     doc["sn"] = m.serial;
-    doc["total"] = m.total;
-    doc["data_type"] = DT_ELECTRICITY;
 
+    // Показание и его код идут парой: что человек не выбрал, того в запросе
+    // нет совсем. Иначе облако получило бы нули под видом показаний.
+    if (s.totalType != DT_NONE) {
+        doc["total"] = m.total;
+        doc["data_type"] = (int)s.totalType;
+    }
     for (uint8_t i = 0; i < m.tariffCount && i < MAX_TARIFFS; i++) {
+        if (s.tariffType[i] == DT_NONE) continue;
+        // Номер поля — номер тарифа в счётчике, без перенумерации: так строка
+        // в логе сходится с показаниями на странице статуса.
         char name[12];
         snprintf(name, sizeof(name), "total%u", i + 1);
         doc[name] = m.tariff[i];
         snprintf(name, sizeof(name), "data_type%u", i + 1);
-        doc[name] = tariffDataType(i);
+        doc[name] = (int)s.tariffType[i];
     }
 
     doc["fw"] = dev.fw;

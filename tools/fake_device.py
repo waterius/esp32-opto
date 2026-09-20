@@ -84,6 +84,9 @@ SETTINGS = {
     'baud': 9600, 'bits': 8, 'parity': 'N', 'stop': 1,
     'meter_enabled': True, 'meter_addr': 0, 'meter_pwd': '111',
     'period_min': 60, 'host': 'http://127.0.0.1:8080', 'key': 'sim-key', 'email': '',
+    # Коды data_type: -1 — не отправлять (core/data_type.h). Как в прошивке,
+    # по умолчанию не уходит ни сумма, ни тарифы.
+    'data_type': -1, 'data_type1': -1, 'data_type2': -1, 'data_type3': -1, 'data_type4': -1,
     'rfc_enabled': True, 'rfc_port': 2217,
     'reboot_min': 60, 'ip': '', 'gateway': '', 'mask': '', 'dns': '',
 }
@@ -187,11 +190,17 @@ def cloud_payload():
     last = DEV['last']
     body = {
         'key': SETTINGS['key'], 'email': SETTINGS['email'], 'sn': last['serial'],
-        'total': last['total'], 'data_type': 2,
     }
+    # Показание и его код идут парой, невыбранного в запросе нет совсем
+    if SETTINGS['data_type'] != -1:
+        body['total'] = last['total']
+        body['data_type'] = SETTINGS['data_type']
     for i, v in enumerate(last['tariffs'][:4]):
+        code = SETTINGS['data_type%d' % (i + 1)]
+        if code == -1:
+            continue
         body['total%d' % (i + 1)] = v
-        body['data_type%d' % (i + 1)] = [5, 6, 7, 8][i]
+        body['data_type%d' % (i + 1)] = code
     read_at = DEV['read_at']
     body.update({
         'fw': FIRMWARE_VERSION, 'model': last['model'], 'meter_fw': last['meter_fw'],
@@ -215,6 +224,10 @@ def do_send():
         headers = {'Content-Type': 'application/json',
                    'Waterius-Token': SETTINGS['key'], 'Waterius-Email': SETTINGS['email']}
 
+    # Обмен целиком — как net::postJson() на уровне debug
+    log.println('Облако → POST %s, %d байт' % (url, len(body)))
+    log.println(body.decode())
+
     req = urllib.request.Request(url, data=body, headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=12) as res:
@@ -226,7 +239,10 @@ def do_send():
 
     with lock:
         DEV['cloud_code'] = code
-        log.println('Облако: HTTP %d %s' % (code, text.strip()))
+        log.println('Облако ← HTTP %d, %d байт' % (code, len(text)))
+        if text:
+            log.println(text)
+        log.println('Облако: HTTP %d %s' % (code, text.strip()[:120]))
         if code != 200:
             DEV['cloud_error'] = 'нет соединения' if code < 0 else 'сервер ответил ошибкой'
             return
@@ -280,6 +296,8 @@ def status():
             'has_reading': DEV['has_reading'], 'read_at': DEV['read_at'],
             'serial': last['serial'], 'model': last['model'], 'meter_fw': last['meter_fw'],
             'meter_time': last['meter_time'], 'total': last['total'], 'tariffs': last['tariffs'],
+            'total_type': SETTINGS['data_type'],
+            'tariff_types': [SETTINGS['data_type%d' % (i + 1)] for i in range(4)],
             'cloud_at': DEV['cloud_at'], 'cloud_code': DEV['cloud_code'],
             'cloud_error': DEV['cloud_error'], 'cloud_next_s': seconds_to_next_send(),
         }
@@ -351,6 +369,16 @@ def post_settings(form):
             errors[name] = message
         else:
             s[name] = v
+
+    # Коды не сплошные, поэтому диапазоном не проверить — как core::validDataType()
+    for name in ('data_type', 'data_type1', 'data_type2', 'data_type3', 'data_type4'):
+        code = num(name, -1, 8, 'Выберите тип данных из списка')
+        if code is None:
+            continue
+        if code in (-1, 2, 5, 6, 7, 8):
+            s[name] = code
+        else:
+            errors[name] = 'Выберите тип данных из списка'
 
     s['rfc_enabled'] = form.get('rfc_enabled', ['0'])[0] == '1'
     port = num('rfc_port', 1, 65535, 'Порт: от 1 до 65535')

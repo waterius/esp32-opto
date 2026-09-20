@@ -38,7 +38,9 @@ python3 tools/fake_device.py                             # веб-страниц
 - `test/test_log_level` — выбор приёмника по уровню при двух независимых порогах;
 - `test/test_status_line` — сборка строки состояния: кавычки, экранирование,
   обрезка по границе буквы, худший случай длины;
-- `test/test_text` — обрезка UTF-8 на границе куска лога.
+- `test/test_text` — обрезка UTF-8 на границе куска лога;
+- `test/test_cloud` — тело запроса в облако: что уходит, а что нет при разных
+  кодах `data_type`, номера полей, проверка кода.
 
 Env `native` собирает из `src` только файлы ядра, перечисленные в
 `build_src_filter`: **новый модуль ядра надо туда добавить**, иначе тесты его
@@ -73,7 +75,7 @@ src/core/     ядро, без Arduino: nartis (адаптер на GuruxDLMS.c)
               (контроль живости сети), restart_reason, log_level (пороги
               приёмников лога), status_line (строка состояния для USB),
               text,
-              settings.h, meter.h, opto_port.h
+              settings.h, meter.h, opto_port.h, data_type.h (коды облака)
 src/port/     железо: opto_bus (владелец UART1), opto_esp32, net (Wi-Fi, HTTPS),
               wifi_portal (перенос из waterius), web (API), rfc2217, ota_cloud,
               storage (NVS), log (USB + кольцевой буфер), watchdog (сторожа
@@ -248,6 +250,13 @@ USB-Serial/JTAG (в частности, почему `setTxTimeoutMs(0)` опа�
   Коды `data_type`: 2 — электричество (сумма), 5 — день, 6 — ночь,
   7 — пик, 8 — полупик. Образец полного запроса — тест
   `test_iz_server_ekt5ce102m` в `apps/source/pytest/pytest_iz.py`.
+- **Коды назначает человек, а не прошивка.** Счётчик не знает, какой его
+  тариф дневной: в нём это просто T1…T4. Для суммы и каждого тарифа код
+  выбирается на странице настроек и лежит в `core::Settings`
+  (`totalType`, `tariffType[]`, `-1` = `DT_NONE` — не отправлять). **По
+  умолчанию не выбрано ничего**, и показаний в запросе нет совсем: пара
+  `totalN`/`data_typeN` уходит только вместе. Номер поля — номер тарифа в
+  счётчике, без перенумерации. Коды — `src/core/data_type.h`.
 - **Для времени и версии ПО счётчика полей нет.** `fw` — это версия
   прошивки ESP. Прошивка шлёт их дополнительными полями `meter_fw`,
   `meter_time`, `meter_read_at` вместе с кодом ошибки OTA `ota_error` —
