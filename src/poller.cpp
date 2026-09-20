@@ -163,8 +163,8 @@ void sendCloud() {
     String response;
     int code = net::postJson(app.sett, "/api/source/iz/", body, response);
     app.cloudCode = code;
-    // Ответ сервера кладём в лог обрезанным: целиком это сотни байт JSON,
-    // которые никому не нужны, зато выталкивают из буфера страницы всё полезное
+    // Итог обмена — одной строкой и с началом ответа: целиком запрос и ответ
+    // уже написал net::postJson на уровне debug.
     Log.info("Облако: HTTP %d %.120s\n", code, response.c_str());
     if (code != 200) {
         snprintf(app.cloudError, sizeof(app.cloudError), code < 0 ? "нет соединения" : "сервер ответил ошибкой");

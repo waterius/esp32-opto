@@ -532,11 +532,26 @@ int postJson(const core::Settings& s, const char* path, const char* body, String
     http.addHeader("Content-Type", "application/json");
     http.addHeader("Waterius-Token", s.key);
     http.addHeader("Waterius-Email", s.email);
-    int code = http.POST((uint8_t*)body, strlen(body));
+
+    // Запрос пишем целиком: по одному коду ответа не понять, что именно ушло
+    // на сервер, а тело собирается из настроек, показаний счётчика и состояния
+    // платы — ошибка может быть в любом из трёх. Заголовков в логе нет: ключ и
+    // почта из них лежат в том же теле полями key и email. Уровень debug, тело
+    // длиннее LINE_CAP — поэтому отдельной строкой через line().
+    size_t len = strlen(body);
+    Log.debug("Облако → POST %s, %u байт\n", url.c_str(), (unsigned)len);
+    Log.line(core::LogLevel::Debug, body, len);
+
+    int code = http.POST((uint8_t*)body, len);
     if (code > 0) {
         link.activity(millis());  // сервер ответил — сеть точно жива
         response = http.getString();
     }
+    // Ответ тоже целиком: в нём приходит блок ota, а при отказе — объяснение
+    // сервера, которое в строку итога (poller) влезает лишь началом.
+    Log.debug("Облако ← HTTP %d, %u байт\n", code, (unsigned)response.length());
+    if (response.length()) Log.line(core::LogLevel::Debug, response.c_str(), response.length());
+
     http.end();
     return code;
 }
