@@ -296,8 +296,6 @@ def status():
             'has_reading': DEV['has_reading'], 'read_at': DEV['read_at'],
             'serial': last['serial'], 'model': last['model'], 'meter_fw': last['meter_fw'],
             'meter_time': last['meter_time'], 'total': last['total'], 'tariffs': last['tariffs'],
-            'total_type': SETTINGS['data_type'],
-            'tariff_types': [SETTINGS['data_type%d' % (i + 1)] for i in range(4)],
             'cloud_at': DEV['cloud_at'], 'cloud_code': DEV['cloud_code'],
             'cloud_error': DEV['cloud_error'], 'cloud_next_s': seconds_to_next_send(),
         }
