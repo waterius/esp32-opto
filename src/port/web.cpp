@@ -73,6 +73,11 @@ void getStatus(AsyncWebServerRequest* request) {
     doc["total"] = last.total;
     JsonArray tariffs = doc["tariffs"].to<JsonArray>();
     for (uint8_t i = 0; i < last.tariffCount && i < core::MAX_TARIFFS; ++i) tariffs.add(last.tariff[i]);
+    // Коды — из настроек, а не из показаний: страница подписывает ими строки,
+    // чтобы было видно, что именно уйдёт в облако.
+    doc["total_type"] = (int)app.sett.totalType;
+    JsonArray types = doc["tariff_types"].to<JsonArray>();
+    for (uint8_t i = 0; i < core::MAX_TARIFFS; ++i) types.add((int)app.sett.tariffType[i]);
 
     doc["cloud_at"] = app.cloudAt;
     doc["cloud_code"] = app.cloudCode;
@@ -99,6 +104,12 @@ void getSettings(AsyncWebServerRequest* request) {
     doc["host"] = s.host;
     doc["key"] = s.key;
     doc["email"] = s.email;
+    doc["data_type"] = (int)s.totalType;
+    for (uint8_t i = 0; i < core::MAX_TARIFFS; ++i) {
+        char name[12];
+        snprintf(name, sizeof(name), "data_type%u", i + 1);
+        doc[name] = (int)s.tariffType[i];
+    }
     doc["rfc_enabled"] = s.rfcEnabled;
     doc["rfc_port"] = s.rfcPort;
     doc["reboot_min"] = s.rebootMin;
@@ -160,6 +171,17 @@ bool paramIp(AsyncWebServerRequest* request, const char* name, uint32_t& out, Js
 // Чекбокс: formSubmit шлёт 1 или 0, как в портале waterius.
 bool paramBool(AsyncWebServerRequest* request, const char* name) { return param(request, name) == "1"; }
 
+// Код data_type из формы: DT_NONE или один из кодов Waterius. Диапазоном не
+// проверить — коды не сплошные, поэтому решает ядро.
+void paramDataType(AsyncWebServerRequest* request, const char* name, int8_t& out,
+                   JsonObject errors) {
+    long v = 0;
+    const char* message = "Выберите тип данных из списка";
+    if (!paramLong(request, name, core::DT_NONE, core::DT_HALF_PEAK, v, errors, message)) return;
+    if (!core::validDataType(v)) errors[name] = message;
+    else out = (int8_t)v;
+}
+
 void postSettings(AsyncWebServerRequest* request) {
     core::Settings s = app.sett;
     JsonDocument doc;
@@ -188,6 +210,12 @@ void postSettings(AsyncWebServerRequest* request) {
         errors["host"] = "Адрес начинается с http:// или https://";
     paramStr(request, "key", s.key, sizeof(s.key), errors, "Ключ — до 40 символов");
     paramStr(request, "email", s.email, sizeof(s.email), errors, "E-mail — до 63 символов");
+    paramDataType(request, "data_type", s.totalType, errors);
+    for (uint8_t i = 0; i < core::MAX_TARIFFS; ++i) {
+        char name[12];
+        snprintf(name, sizeof(name), "data_type%u", i + 1);
+        paramDataType(request, name, s.tariffType[i], errors);
+    }
 
     s.rfcEnabled = paramBool(request, "rfc_enabled");
     if (paramLong(request, "rfc_port", 1, 65535, v, errors, "Порт: от 1 до 65535")) s.rfcPort = (uint16_t)v;

@@ -101,6 +101,21 @@ function statusPage() {
     setInterval(loadStatus, 3000);
 }
 
+// Коды data_type облака (core/data_type.h). Подпись у показания показывает,
+// чем оно уйдёт в облако и уйдёт ли вообще.
+const DATA_TYPES = {
+    '-1': 'не отправляется',
+    '2': 'сумма',
+    '5': 'день',
+    '6': 'ночь',
+    '7': 'пик',
+    '8': 'полупик'
+};
+
+function dataType(code) {
+    return DATA_TYPES[code] || 'не отправляется';
+}
+
 function loadStatus() {
     ajax('/api/status', {}, s => {
         let state = 'ок';
@@ -117,11 +132,12 @@ function loadStatus() {
         setText('meter-time', s.meter_time || '—');
         setText('read-at', s.has_reading ? fmtTime(s.read_at) : 'чтений не было');
         setText('total', s.has_reading ? fmtKwh(s.total) : '—');
+        setText('total-name', 'Всего (' + dataType(s.total_type) + '), кВт·ч');
         const rows = $('tariffs');
         rows.innerHTML = '';
         s.tariffs.forEach((v, i) => {
             const tr = rows.insertRow();
-            tr.insertCell().textContent = 'T' + (i + 1) + ', кВт·ч';
+            tr.insertCell().textContent = 'T' + (i + 1) + ' (' + dataType((s.tariff_types || [])[i]) + '), кВт·ч';
             tr.insertCell().textContent = fmtKwh(v);
         });
 
