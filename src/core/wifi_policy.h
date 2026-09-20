@@ -77,6 +77,11 @@ class WifiPolicy {
     // Старт прошивки: связи нет, отсчёт простоя пошёл с nowMs.
     void reset(uint32_t nowMs);
 
+    // Явная команда «подключиться» со страницы. Единственный способ выйти в
+    // сеть, пока кто-то настраивает устройство через точку доступа: обходит и
+    // паузу между попытками, и запрет на самостоятельные попытки. Одноразовая.
+    void requestConnect() { commandPending_ = true; }
+
     // Одно решение за вызов. Вызывается из loop() на каждой итерации.
     WifiAction step(const WifiFacts& facts, uint32_t nowMs);
 
@@ -109,6 +114,7 @@ class WifiPolicy {
     bool fastDisabled_ = false;      // до следующего успеха быстрый коннект не пробуем
     bool forgetFastPending_ = false; // порту ещё не сказали забыть пару
     bool restartPending_ = false;    // следующим шагом перезапустить радио
+    bool commandPending_ = false;    // человек нажал «Подключиться» на странице
 
 };
 

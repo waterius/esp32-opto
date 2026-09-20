@@ -15,6 +15,7 @@ void WifiPolicy::reset(uint32_t nowMs) {
     fastDisabled_ = false;
     forgetFastPending_ = false;
     restartPending_ = false;
+    commandPending_ = false;
 }
 
 uint32_t WifiPolicy::offlineMs(uint32_t nowMs) const { return linkUp_ ? 0 : nowMs - lostSinceMs_; }
@@ -84,6 +85,16 @@ WifiAction WifiPolicy::step(const WifiFacts& facts, uint32_t nowMs) {
         return WifiAction::StartAp;
 
     if (attemptActive_) return WifiAction::None;
+
+    // Явная команда со страницы идёт вперёд всех пауз и запретов: человек
+    // ввёл сеть и нажал «Подключиться», ждать его заставлять нечего. Это и
+    // есть тот единственный способ подключиться во время настройки — как
+    // start_connect_flag в портале waterius.
+    if (commandPending_) {
+        commandPending_ = false;
+        return startAttempt(facts, nowMs);
+    }
+
     if (nowMs - retryStartMs_ < retryDelayMs_) return WifiAction::None;
 
     // Перезапуск радио уронит и точку доступа: пока на ней кто-то сидит, эту

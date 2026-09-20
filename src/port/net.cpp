@@ -426,7 +426,8 @@ void reconnect(const core::Settings& s) {
     lastReason_.store(0);
     link.reset(millis());
     linkDeadLogged = false;
-    policy.reset(millis());  // лестница начинается заново, попытка — сразу
+    policy.reset(millis());   // лестница начинается заново
+    policy.requestConnect();  // и попытка сразу, даже если человек сидит на точке
 }
 
 // Наружу — связь, подтверждённая делом. Мёртвый линк, который драйвер считает
