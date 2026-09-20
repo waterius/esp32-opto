@@ -73,11 +73,9 @@ void getStatus(AsyncWebServerRequest* request) {
     doc["total"] = last.total;
     JsonArray tariffs = doc["tariffs"].to<JsonArray>();
     for (uint8_t i = 0; i < last.tariffCount && i < core::MAX_TARIFFS; ++i) tariffs.add(last.tariff[i]);
-    // Коды — из настроек, а не из показаний: страница подписывает ими строки,
-    // чтобы было видно, что именно уйдёт в облако.
-    doc["total_type"] = (int)app.sett.totalType;
-    JsonArray types = doc["tariff_types"].to<JsonArray>();
-    for (uint8_t i = 0; i < core::MAX_TARIFFS; ++i) types.add((int)app.sett.tariffType[i]);
+    // Кодов data_type здесь нет: страница показаний показывает то, что отдал
+    // счётчик, — T1…T4. Чем тариф считать, видно там, где это выбирают, —
+    // на странице настроек, где показание стоит над своим списком.
 
     doc["cloud_at"] = app.cloudAt;
     doc["cloud_code"] = app.cloudCode;

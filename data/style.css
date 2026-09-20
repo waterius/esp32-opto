@@ -24,6 +24,7 @@ input,select{width:100%;height:44px;padding:0 12px;border:1px solid #ccc;border-
 .form-error{color:#F53410;background:#FFF0ED;padding:12px;border-radius:8px;margin:8px 0}
 .ok{color:#1a7f37;margin-top:12px;line-height:20px}
 .text{line-height:20px;margin:8px 0}
+.val{font-weight:700}
 .net{display:flex;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid #eee;cursor:pointer}
 .lvl{color:#1655F5;white-space:nowrap}
 .wrap.wide{max-width:960px}

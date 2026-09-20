@@ -11,7 +11,7 @@ namespace core {
 
 enum DataType : int8_t {
     DT_NONE = -1,        // не отправлять это показание совсем
-    DT_ELECTRICITY = 2,  // электричество, сумма
+    DT_ELECTRICITY = 2,  // электричество, всего
     DT_DAY = 5,
     DT_NIGHT = 6,
     DT_PEAK = 7,
