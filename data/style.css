@@ -5,6 +5,7 @@ body{background:#fff;color:#232323}
 .nav{display:flex;flex-wrap:wrap;gap:16px;margin-bottom:8px}
 .nav a{color:#1655F5;text-decoration:none;font-weight:700}
 .nav a.on{color:#232323}
+h1{font-size:26px;font-weight:700;margin:0 0 12px}
 h2{font-size:22px;font-weight:700;margin:24px 0 12px}
 table{width:100%;border-collapse:collapse}
 td{padding:6px 0;border-bottom:1px solid #eee;vertical-align:top;line-height:20px}

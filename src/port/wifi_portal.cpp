@@ -143,6 +143,11 @@ void postWifi(AsyncWebServerRequest* request) {
 void getWifiStatus(AsyncWebServerRequest* request) {
     static const char* NAMES[] = {"idle", "connecting", "connected", "failed"};
     JsonDocument doc;
+    // Заявка со страницы принята, но ещё не применена: loop() до неё не дошёл.
+    // Без этого признака страница объявляет успехом состояние прошлой сети —
+    // её обслуживает задача async_tcp и отвечает сразу, а loop() в это время
+    // может стоять в опросе счётчика или в запросе к облаку.
+    doc["pending"] = pendingFlag.load();
     doc["status"] = NAMES[(int)net::status()];
     doc["error"] = net::error();
     doc["ssid"] = app.sett.ssid;

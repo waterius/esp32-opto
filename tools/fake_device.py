@@ -590,6 +590,7 @@ class Handler(BaseHTTPRequestHandler):
         if path == '/api/wifi_status':
             with lock:
                 return self.json({'status': SIM['wifi_status'], 'error': SIM['wifi_error'],
+                                  'pending': SIM.get('wifi_pending', False),
                                   'ssid': SIM['ssid'], 'ip': SIM['ip'],
                                   'rssi': SIM['rssi'], 'mode': 'STA'})
         if path == '/api/networks':
