@@ -1,0 +1,172 @@
+<!doctype html>
+<!--
+  Поиск устройств в локальной сети из браузера: нужна, когда плата подключилась
+  к роутеру, а её адрес неизвестен и в список клиентов роутера заглянуть нельзя.
+
+  Скачать файл, открыть у себя в браузере, вписать свою подсеть, «Сканировать».
+  По https:// страница не работает: браузер режет её запросы на
+  http://192.168.x.x как mixed content — поэтому главная кнопка «Скачать файл».
+
+  Как работает: на каждый адрес подсети шлётся fetch(mode:'no-cors') на
+  указанные порты и замеряется время. Запрос прошёл — на порту веб-сервер
+  (у платы это 80). Соединение отбито быстрее порога — хост есть, но порт
+  закрыт. Тишина до таймаута — адрес, скорее всего, пуст. Метод косвенный:
+  проверка — роутер (.1) обязан найтись.
+
+  Плату видно как «HTTP отвечает» на порту 80; по ссылке открывается её
+  страница статуса.
+-->
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LAN сканер</title>
+<style>
+  :root { --bg:#fff; --fg:#111; --muted:#666; --line:#ddd; --ok:#1a7f37; --warn:#9a6700; --bad:#cf222e; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#111; --fg:#eee; --muted:#999; --line:#333; --ok:#3fb950; --warn:#d29922; --bad:#f85149; } }
+  body { background:var(--bg); color:var(--fg); font:15px -apple-system,system-ui,sans-serif; margin:0; padding:16px; }
+  h1 { font-size:20px; margin:0 0 12px; }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  label { display:flex; flex-direction:column; font-size:13px; color:var(--muted); }
+  input { font-size:16px; padding:6px; border:1px solid var(--line); border-radius:6px; background:var(--bg); color:var(--fg); }
+  button { font-size:16px; padding:10px 16px; border-radius:8px; border:0; margin:12px 8px 0 0; }
+  #save { background:#0969da; color:#fff; }
+  #go, #stop { background:transparent; color:var(--fg); border:1px solid var(--line); }
+  progress { width:100%; margin-top:12px; }
+  #status, .note { font-size:13px; color:var(--muted); margin-top:6px; }
+  #warn { color:var(--bad); font-weight:600; }
+  table { width:100%; border-collapse:collapse; margin-top:12px; }
+  td, th { text-align:left; padding:6px 4px; border-bottom:1px solid var(--line); font-size:14px; }
+  .open { color:var(--ok); } .alive { color:var(--warn); }
+  a { color:inherit; }
+</style>
+</head>
+<body>
+<h1>Сканер локальной сети</h1>
+<div id="warn"></div>
+<div class="grid">
+  <label>Подсеть <input id="net" value="192.168.1"></label>
+  <label>Порты (через запятую) <input id="ports" value="80,8080"></label>
+  <label>С адреса <input id="from" type="number" value="1"></label>
+  <label>По адрес <input id="to" type="number" value="254"></label>
+  <label>Таймаут, мс <input id="timeout" type="number" value="3000"></label>
+  <label>Порог «быстрого отказа», мс <input id="fast" type="number" value="1000"></label>
+</div>
+<button id="save">Скачать файл</button><button id="go">Сканировать</button><button id="stop">Стоп</button>
+<progress id="prog" value="0" max="1"></progress>
+<div id="status"></div>
+<table><thead><tr><th>IP</th><th>Порт</th><th>мс</th><th>Вывод</th></tr></thead><tbody id="out"></tbody></table>
+<p class="note">
+  <b class="open">HTTP отвечает</b>: на порту есть веб-сервер, по IP можно нажать.<br>
+  <b class="alive">вероятно жив</b>: устройство быстро отказало в соединении (порт закрыт, но хост есть).<br>
+  Метод основан на времени ответа браузера и не гарантирует результат. Для проверки: адрес роутера (.1) должен найтись.
+</p>
+<script>
+const $ = id => document.getElementById(id);
+let stopped = false;
+
+if (location.protocol === 'https:') {
+  $('warn').textContent = 'Страница открыта по HTTPS — так она не работает: браузер заблокирует запросы на http://192.168.x.x (mixed content). Нажмите «Скачать файл» и откройте копию локально.';
+}
+
+async function probe(url, timeout) {
+  const ctl = new AbortController();
+  const t0 = performance.now();
+  const timer = setTimeout(() => ctl.abort(), timeout);
+  try {
+    await fetch(url, { mode: 'no-cors', cache: 'no-store', signal: ctl.signal });
+    return { kind: 'open', ms: performance.now() - t0 };
+  } catch (e) {
+    return { kind: ctl.signal.aborted ? 'timeout' : 'error', ms: performance.now() - t0 };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function scanHost(ip, ports, timeout, fast) {
+  let best = null;
+  for (const port of ports) {
+    if (stopped) break;
+    const r = await probe(`http://${ip}:${port}/`, timeout);
+    if (r.kind === 'open') return { ip, port, ms: r.ms, kind: 'open' };
+    if (r.kind === 'error' && r.ms < fast && !best) best = { ip, port, ms: r.ms, kind: 'alive' };
+  }
+  return best;
+}
+
+function ipKey(ip) { return +ip.split('.').pop(); }
+
+function render(found) {
+  const rows = [...found].sort((a, b) => ipKey(a.ip) - ipKey(b.ip)).map(f => {
+    const cls = f.kind;
+    const ipCell = f.kind === 'open'
+      ? `<a href="http://${f.ip}:${f.port}/" target="_blank">${f.ip}</a>` : f.ip;
+    const verdict = f.kind === 'open' ? 'HTTP отвечает' : 'вероятно жив';
+    return `<tr class="${cls}"><td>${ipCell}</td><td>${f.port}</td><td>${Math.round(f.ms)}</td><td>${verdict}</td></tr>`;
+  });
+  $('out').innerHTML = rows.join('');
+}
+
+$('go').onclick = async () => {
+  stopped = false;
+  const net = $('net').value.trim().replace(/\.$/, '');
+  const from = +$('from').value, to = +$('to').value;
+  const ports = $('ports').value.split(',').map(s => +s.trim()).filter(Boolean);
+  const timeout = +$('timeout').value, fast = +$('fast').value;
+  const ips = [];
+  for (let i = from; i <= to; i++) ips.push(`${net}.${i}`);
+  const found = [];
+  let done = 0;
+  $('prog').max = ips.length; $('prog').value = 0; $('out').innerHTML = '';
+  const t0 = performance.now();
+
+  const CONCURRENCY = 24;
+  let next = 0;
+  async function worker() {
+    while (!stopped && next < ips.length) {
+      const ip = ips[next++];
+      const r = await scanHost(ip, ports, timeout, fast);
+      if (r) { found.push(r); render(found); }
+      $('prog').value = ++done;
+      $('status').textContent = `Проверено ${done}/${ips.length}, найдено ${found.length}`;
+    }
+  }
+  await Promise.all(Array.from({ length: CONCURRENCY }, worker));
+  $('status').textContent = `${stopped ? 'Остановлено' : 'Готово'}: проверено ${done}, найдено ${found.length}, ${((performance.now() - t0) / 1000).toFixed(1)} с`;
+};
+
+$('stop').onclick = () => { stopped = true; };
+
+// Копия страницы одним файлом. По http берём исходник с сервера — он заведомо
+// чистый; из file:// fetch запрещён, поэтому собираем из DOM, выкинув
+// результаты прошлого скана. Значения полей ввода в разметку не попадают:
+// правка input меняет свойство, а не атрибут, так что копия уедет с
+// умолчаниями.
+async function pageSource() {
+  try {
+    const r = await fetch(location.href, { cache: 'no-store' });
+    if (r.ok) return await r.text();
+  } catch (e) { /* file:// — читаем из DOM */ }
+  const copy = document.documentElement.cloneNode(true);
+  for (const sel of ['#out', '#status', '#warn']) {
+    const el = copy.querySelector(sel);
+    if (el) el.innerHTML = '';
+  }
+  const notes = [...document.childNodes]
+    .filter(n => n.nodeType === Node.COMMENT_NODE)
+    .map(n => `<!--${n.data}-->`)
+    .join('\n');
+  return `<!doctype html>\n${notes}\n${copy.outerHTML}`;
+}
+
+$('save').onclick = async () => {
+  const blob = new Blob([await pageSource()], { type: 'text/html;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'lan_scan.html';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
+</script>
+</body>
+</html>
