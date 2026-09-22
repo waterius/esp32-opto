@@ -212,6 +212,96 @@ void test_ap_stays_up_while_a_client_is_connected() {
 
 // Радио одно на оба режима: каждая попытка подключения уводит его в полный скан
 // и на канал роутера, обрывая сессию настройки. Пока портал занят — не ходим.
+// --- Возврат на точку доступа за новым адресом ------------------------------
+//
+// Сценарий целиком: человек на точке доступа выбрал сеть и нажал «Подключиться».
+// Радио уходит на канал роутера, точка переезжает следом и сбивает с себя
+// телефон. Раньше в этот момент точку гасили («на ней никого»), и человек
+// оставался без единого способа узнать выданный роутером адрес.
+
+void test_ap_survives_the_phone_it_kicked_off_after_a_portal_connect() {
+    FakeWifi w;
+    w.routerUp = false;
+    w.start();
+    w.run(3 * MIN);
+    TEST_ASSERT_TRUE(w.apActive);
+
+    w.apBusy = true;  // человек подключился к точке и открыл страницу
+    w.portalFedMs = w.now;
+    w.routerUp = true;
+    w.policy.requestConnect();  // нажал «Подключиться»
+    w.policy.requestApHold();
+    w.run(10 * SEC, SEC);
+    TEST_ASSERT_TRUE_MESSAGE(w.linkUp, "по команде со страницы не подключились");
+
+    w.apBusy = false;  // точка переехала на канал роутера и сбила телефон
+    w.run(2 * MIN, SEC);
+    TEST_ASSERT_TRUE_MESSAGE(w.apActive, "точку погасили — человеку некуда вернуться за адресом");
+
+    // Телефон вернулся на точку: дальше её держит обычное правило «на ней кто-то есть»
+    w.apBusy = true;
+    w.portalFedMs = w.now;
+    w.run(5 * MIN, SEC);
+    TEST_ASSERT_TRUE_MESSAGE(w.apActive, "точка ушла из-под вернувшегося телефона");
+}
+
+void test_held_ap_goes_down_when_the_window_expires() {
+    FakeWifi w;
+    w.routerUp = false;
+    w.start();
+    w.run(3 * MIN);
+    w.apBusy = true;
+    w.portalFedMs = w.now;
+    w.routerUp = true;
+    w.policy.requestConnect();
+    w.policy.requestApHold();
+    w.run(10 * SEC, SEC);
+    TEST_ASSERT_TRUE(w.linkUp);
+
+    w.apBusy = false;
+    w.run(2 * MIN, SEC);
+    TEST_ASSERT_TRUE_MESSAGE(w.apActive, "выдержка кончилась раньше срока");
+
+    w.run(3 * MIN, SEC);  // всего больше трёх минут с момента подключения
+    TEST_ASSERT_FALSE_MESSAGE(w.apActive, "за адресом никто не пришёл, а точка так и висит");
+}
+
+void test_ap_is_not_held_after_a_connect_the_firmware_started_itself() {
+    FakeWifi w;
+    w.routerUp = false;
+    w.start();
+    w.run(3 * MIN);
+    TEST_ASSERT_TRUE(w.apActive);
+
+    // Никто ничего не нажимал: роутер просто вернулся в эфир. Гасим сразу, как и раньше.
+    w.routerUp = true;
+    w.run(2 * MIN, SEC);
+    TEST_ASSERT_TRUE(w.linkUp);
+    TEST_ASSERT_FALSE_MESSAGE(w.apActive, "точка держится после подключения, которого никто не просил");
+}
+
+void test_ap_hold_survives_millis_rollover() {
+    FakeWifi w;
+    w.routerUp = false;
+    w.start(0xFFFFFFFFUL - 30 * SEC);  // переполнение случится внутри выдержки
+    w.run(3 * MIN, SEC);
+    TEST_ASSERT_TRUE(w.apActive);
+
+    w.apBusy = true;
+    w.portalFedMs = w.now;
+    w.routerUp = true;
+    w.policy.requestConnect();
+    w.policy.requestApHold();
+    w.run(10 * SEC, SEC);
+    TEST_ASSERT_TRUE(w.linkUp);
+
+    w.apBusy = false;
+    w.run(2 * MIN, SEC);
+    TEST_ASSERT_TRUE_MESSAGE(w.apActive, "переполнение millis оборвало выдержку");
+    w.run(3 * MIN, SEC);
+    TEST_ASSERT_FALSE_MESSAGE(w.apActive, "после переполнения millis выдержка не кончается");
+}
+
 void test_no_connect_attempts_while_someone_configures_over_ap() {
     FakeWifi w;
     w.routerUp = false;
@@ -414,6 +504,10 @@ int main() {
     RUN_TEST(test_working_network_does_not_raise_ap_early);
     RUN_TEST(test_ap_goes_down_when_router_returns);
     RUN_TEST(test_ap_stays_up_while_a_client_is_connected);
+    RUN_TEST(test_ap_survives_the_phone_it_kicked_off_after_a_portal_connect);
+    RUN_TEST(test_held_ap_goes_down_when_the_window_expires);
+    RUN_TEST(test_ap_is_not_held_after_a_connect_the_firmware_started_itself);
+    RUN_TEST(test_ap_hold_survives_millis_rollover);
     RUN_TEST(test_no_connect_attempts_while_someone_configures_over_ap);
     RUN_TEST(test_explicit_command_connects_even_under_a_portal_client);
     RUN_TEST(test_forgotten_portal_client_stops_blocking_after_idle);
