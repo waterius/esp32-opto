@@ -1142,7 +1142,7 @@ class Session {
                 pwd[0] ? DLMS_AUTHENTICATION_LOW : DLMS_AUTHENTICATION_NONE, pwd[0] ? pwd : NULL,
                 DLMS_INTERFACE_TYPE_HDLC);
         // Набор услуг и размер PDU в AARQ — как в обмене, проверенном на
-        // счётчике (docs/06-nartis-100-exchange.md, conformance 00 7e 1f,
+        // счётчике (docs/05-nartis-100-exchange.md, conformance 00 7e 1f,
         // max PDU 1200). Свои умолчания Gurux предлагает шире.
         settings_.proposedConformance = (DLMS_CONFORMANCE)(
             DLMS_CONFORMANCE_PRIORITY_MGMT_SUPPORTED | DLMS_CONFORMANCE_ATTRIBUTE_0_SUPPORTED_WITH_GET |
@@ -1192,7 +1192,7 @@ class Session {
 
     // DISC. Ошибки не важны: счётчик сам закроет сеанс по таймауту.
     // RLRQ (release) не шлём: проверенный на счётчике обмен закрывается одним
-    // DISC (docs/06-nartis-100-exchange.md), а лишний запрос — лишние 2 секунды
+    // DISC (docs/05-nartis-100-exchange.md), а лишний запрос — лишние 2 секунды
     // ожидания, если счётчик на него не отвечает.
     void close() {
         message msg;

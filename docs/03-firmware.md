@@ -1,6 +1,8 @@
-# 4. Прошивка
+# 3. Прошивка
 
-Пины: **GPIO18 = TX**, **GPIO19 = RX** (почему — в [03-esp32-c6-wiring.md](03-esp32-c6-wiring.md)).
+Пины оптопорта задаются в `platformio.ini` отдельно для каждой платы
+(C3 — RX 4 / TX 5, S3 — RX 17 / TX 18); распайка головки —
+в [06-flash-via-head-usb.md](06-flash-via-head-usb.md).
 Формат: 300 бод, 7E1 — старт режима C IEC 62056-21. Параметры конкретного
 счётчика уточнить по его документации.
 
@@ -24,8 +26,9 @@ uart:
 
 ## Arduino (arduino-esp32)
 
-В меню платы включить **USB CDC On Boot → Enabled** (для ESP32-C6 по
-умолчанию Disabled), чтобы `Serial` шёл по USB **[проверено: boards.txt]**.
+В меню платы включить **USB CDC On Boot → Enabled**, если он там выключен,
+чтобы `Serial` шёл по USB **[проверено: boards.txt]**. В нашем
+`platformio.ini` это флаг `ARDUINO_USB_CDC_ON_BOOT=1`.
 
 ```cpp
 HardwareSerial Opto(1);                  // UART1

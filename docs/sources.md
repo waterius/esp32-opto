@@ -10,10 +10,6 @@
 
 - [CP2102N Data Sheet (Silicon Labs)](https://www.silabs.com/documents/public/data-sheets/cp2102n-datasheet.pdf) — выводы QFN28, поведение выводов при сбросе
 - [CP2102/9 Data Sheet (Silicon Labs)](https://www.silabs.com/documents/public/data-sheets/CP2102-9.pdf)
-- [ESP32-C6 Datasheet (Espressif)](https://documentation.espressif.com/esp32-c6_datasheet_en.html) — UART, GPIO Matrix, strapping, USB
-- [ESP-IDF: USB Serial/JTAG Controller Console (ESP32-C6)](https://docs.espressif.com/projects/esp-idf/en/stable/esp32c6/api-guides/usb-serial-jtag-console.html) — нет USB OTG
-- [ESP32-C6 Super Mini — espboards](https://www.espboards.dev/esp32/esp32-c6-super-mini/) — распиновка, безопасные пины
-- [ESP32-C6 Super Mini — studiopieters](https://www.studiopieters.nl/the-ultimate-guide-to-the-esp32-c6-super-mini-pinout/) — встроенный USB CDC/JTAG
 - [ESP32-C3 Datasheet (Espressif)](https://www.espressif.com/sites/default/files/documentation/esp32-c3_datasheet_en.pdf) — GPIO18/19 = USB D−/D+
 - [ESP32-C3-MINI-1 Datasheet (Espressif)](https://documentation.espressif.com/esp32-c3-mini-1_datasheet_en.html) — площадки модуля: 26 = IO18, 27 = IO19
 - [ESP-IDF: USB Serial/JTAG Controller Console (ESP32-C3)](https://docs.espressif.com/projects/esp-idf/en/stable/esp32c3/api-guides/usb-serial-jtag-console.html) — прошивка и консоль через родной USB
