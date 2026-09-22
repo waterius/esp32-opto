@@ -6,6 +6,26 @@ const AJAX_RETRY_MS = 1000;
 
 function $(id) { return document.getElementById(id); }
 
+// Без единого обработчика касаний Safari на iPhone не применяет :active ни к
+// кнопкам, ни к строкам списка сетей, и нажатие остаётся без отклика до самого
+// ответа устройства. Слушатель пустой — нужен сам факт его наличия.
+document.addEventListener('touchstart', () => {}, { passive: true });
+
+// Кнопка на время запроса: гаснет и говорит, чего ждёт. Подпись «занято» берётся
+// из data-busy разметки, иначе остаётся прежней.
+function btnBusy(btn, busy) {
+    if (!btn) return;
+    btn.disabled = busy;
+    const label = btn.dataset.busy;
+    if (!label) return;
+    if (busy) {
+        btn.dataset.idle = btn.textContent;
+        btn.textContent = label;
+    } else if (btn.dataset.idle) {
+        btn.textContent = btn.dataset.idle;
+    }
+}
+
 function ajax(url, opts, callback, _try = 0) {
     fetch(url, opts)
         .then(res => res.ok ? res.text() : Promise.reject(res))
@@ -46,13 +66,13 @@ function formSubmit(event, form, action, done) {
     });
     form.querySelectorAll('p.error').forEach(p => p.classList.add('hd'));
     const submit = form.querySelector('button[type=submit]');
-    if (submit) submit.disabled = true;
+    btnBusy(submit, true);
     ajax(action, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: data
     }, res => {
-        if (submit) submit.disabled = false;
+        btnBusy(submit, false);
         if (res.errors && Object.keys(res.errors).length) {
             for (const k in res.errors) {
                 const el = $(k + '-error');
@@ -148,9 +168,9 @@ function loadStatus() {
 }
 
 function action(url, btn) {
-    btn.disabled = true;
+    btnBusy(btn, true);
     post(url, () => {
-        btn.disabled = false;
+        btnBusy(btn, false);
         loadStatus();
     });
 }
@@ -221,7 +241,10 @@ function wifiPage() {
         $('wifi_channel').value = '';
         $('bssid').value = '';
     });
-    loadNetworks();
+    // Скан сам не запускаем. Радио одно: полный скан уводит его с канала на
+    // полторы-две секунды и рвёт сессию тому, кто сидит на точке доступа — а
+    // captive portal открывает эту страницу автоматически, то есть скан по
+    // загрузке обрывал бы человеку связь ровно в момент захода. Ищем по кнопке.
     loadWifiStatus();
     setInterval(loadWifiStatus, 3000);
 }
@@ -264,10 +287,16 @@ function setWifiResult(text, cls) {
     el.className = cls;  // ok — зелёным, form-error — красной плашкой
 }
 
-function loadNetworks() {
+function loadNetworks(btn) {
+    if (btn) btnBusy(btn, true);
     $('networks').innerHTML = '<p class="text">Поиск сетей…</p>';
     ajax('/api/networks', {}, data => {
-        if (data.scanning) return setTimeout(loadNetworks, 1500);
+        // Скан асинхронный: пока идёт, кнопка остаётся нажатой
+        if (data.scanning) return setTimeout(() => loadNetworks(btn), 1500);
+        if (btn) {
+            btnBusy(btn, false);
+            btn.textContent = 'Обновить список';
+        }
         renderNetworks(data);
     });
 }
@@ -307,7 +336,7 @@ function saveWifi(event, form) {
     wifiWantSsid = $('ssid').value;
     formSubmit(event, form, '/api/wifi', () => {
         wifiAttempt = true;
-        setWifiResult('Подключаюсь… Если связь с устройством пропала — снова подключитесь к его сети Wi-Fi.', 'ok');
+        setWifiResult('Подключаюсь… Если связь с устройством пропала — снова подключитесь к его сети Wi-Fi и откройте эту страницу: адрес будет в строке «IP» наверху.', 'ok');
     });
 }
 

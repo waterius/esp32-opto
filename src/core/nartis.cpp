@@ -243,6 +243,11 @@ int readEnergy(Session& s, uint8_t tariff, double& kwh) {
     if (ret == 0) ret = s.readAttr(BASE(reg), 2, &reply, true);
     if (ret == 0) {
         double v = var_toDouble(&reg.value);
+        // Линтер не видит внутрь Gurux и считает scaler неинициализированным.
+        // cosem_init4() обнуляет объект целиком (memset на sizeof(gxRegister)),
+        // а значение scaler кладёт чтение атрибута 3 выше — сюда мы попадаем
+        // только если оба чтения прошли.
+        // cppcheck-suppress uninitvar
         for (int i = 0; i < reg.scaler; ++i) v *= 10.0;
         for (int i = 0; i > reg.scaler; --i) v /= 10.0;
         if (reg.unit == UNIT_WH) v /= 1000.0;  // Вт·ч → кВт·ч
@@ -278,6 +283,9 @@ void readClock(Session& s, char* out, size_t cap) {
         s.readAttr(BASE(clk), 2, &reply, true) == 0) {
         // Gurux отдаёт время счётчика как есть, без пересчёта по deviation,
         // поэтому и разбирать его надо без часового пояса устройства.
+        // Как и со scaler выше: объект обнулён в cosem_init4(), время положило
+        // чтение атрибута 2 в условии.
+        // cppcheck-suppress uninitvar
         time_t t = (time_t)clk.time.value;
         struct tm tm;
         gmtime_r(&t, &tm);

@@ -1,5 +1,5 @@
 /* Цвета и формы — по мотивам портала waterius (ESP8266/data/static/style.css) */
-*{box-sizing:border-box;margin:0;padding:0;font-family:Roboto,Helvetica,Arial,sans-serif}
+*{box-sizing:border-box;margin:0;padding:0;font-family:Roboto,Helvetica,Arial,sans-serif;-webkit-tap-highlight-color:transparent}
 body{background:#fff;color:#232323}
 .wrap{max-width:420px;margin:0 auto;padding:16px}
 .nav{display:flex;flex-wrap:wrap;gap:16px;margin-bottom:8px}
@@ -20,13 +20,17 @@ input,select{width:100%;height:44px;padding:0 12px;border:1px solid #ccc;border-
 .pw button{position:absolute;right:6px;top:6px;height:32px;padding:0 8px;border:0;background:none;color:#1655F5;font-size:14px}
 .btn{width:100%;height:48px;margin-top:16px;border:0;border-radius:8px;background:#1655F5;color:#fff;font-size:16px}
 .btn:disabled{background:#9db4f0}
+.btn:active:not(:disabled){background:#0f3fb8}
 .btn-serv{width:100%;height:44px;margin-top:12px;border:1px solid #1655F5;border-radius:8px;background:#fff;color:#1655F5;font-size:16px}
+.btn-serv:disabled{border-color:#9db4f0;color:#9db4f0}
+.btn-serv:active:not(:disabled){background:#e7edfd}
 .error{color:#F53410;font-size:14px;margin-top:4px}
 .form-error{color:#F53410;background:#FFF0ED;padding:12px;border-radius:8px;margin:8px 0}
 .ok{color:#1a7f37;margin-top:12px;line-height:20px}
 .text{line-height:20px;margin:8px 0}
 .val{font-weight:700}
 .net{display:flex;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid #eee;cursor:pointer}
+.net:active{background:#e7edfd}
 .lvl{color:#1655F5;white-space:nowrap}
 .wrap.wide{max-width:960px}
 .log{height:65vh;overflow:auto;margin-top:8px;padding:8px;border:1px solid #ccc;border-radius:8px;background:#f7f7f7;font:12px/16px Menlo,Consolas,monospace;white-space:pre-wrap;word-break:break-all}

@@ -41,8 +41,8 @@
         <tr><td>Последняя отправка</td><td id="cloud">—</td></tr>
         <tr><td>Следующая через</td><td id="cloud-next">—</td></tr>
     </table>
-    <button class="btn" id="btn-read" onclick="action('/api/read', this)">Прочитать сейчас</button>
-    <button class="btn" onclick="action('/api/send', this)">Отправить сейчас</button>
+    <button class="btn" id="btn-read" data-busy="Читаю…" onclick="action('/api/read', this)">Прочитать сейчас</button>
+    <button class="btn" data-busy="Отправляю…" onclick="action('/api/send', this)">Отправить сейчас</button>
 
     <h2>Устройство</h2>
     <table>

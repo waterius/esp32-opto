@@ -26,7 +26,6 @@ class LogSink : public Print {
     // Вместо Serial.begin(): до вызова лог не защищён мьютексом.
     void begin(unsigned long baud);
 
-    void setLevels(const core::LogLevels& levels) { levels_ = levels; }
     const core::LogLevels& levels() const { return levels_; }
 
     // Прежде чем собирать факты для строки состояния, стоит спросить, нужны ли они.
@@ -34,7 +33,6 @@ class LogSink : public Print {
         return core::route(level, levels_) != core::LogRoute::None;
     }
 
-    void log(core::LogLevel level, const char* fmt, ...) __attribute__((format(printf, 3, 4)));
     void error(const char* fmt, ...) __attribute__((format(printf, 2, 3)));
     void warn(const char* fmt, ...) __attribute__((format(printf, 2, 3)));
     void info(const char* fmt, ...) __attribute__((format(printf, 2, 3)));
@@ -66,13 +64,19 @@ class LogSink : public Print {
     void flushPending();
     void put(core::LogRoute route, const uint8_t* data, size_t len);
 
+    // Кольцо на 16 КБ намеренно не обнуляется при старте: читается только то,
+    // что уже записано (см. read() и total_), а обнуление стоило бы 16 КБ записи
+    // на каждой загрузке.
+    // cppcheck-suppress uninitMemberVarPrivate
     char buf_[SIZE];
     uint32_t total_ = 0;  // сколько байт принял буфер с момента старта
     uint32_t bootId_ = 0;
     core::LogLevels levels_;
     SemaphoreHandle_t mutex_ = nullptr;
 
-    // Незакрытая строка, пришедшая унаследованным путём Print
+    // Незакрытая строка, пришедшая унаследованным путём Print. Не обнуляется по
+    // той же причине: значима только первая pendingLen_ байт.
+    // cppcheck-suppress uninitMemberVarPrivate
     char pending_[LINE_CAP];
     size_t pendingLen_ = 0;
     TaskHandle_t pendingOwner_ = nullptr;

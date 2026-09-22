@@ -38,6 +38,10 @@
 - [Tasmota: support_wifi.ino](https://github.com/arendst/Tasmota/blob/development/tasmota/tasmota_support/support_wifi.ino) — лестница повторов, разброс по chipId, перезагрузка после 100 попыток
 - [espressif/arduino-esp32#12714](https://github.com/espressif/arduino-esp32/issues/12714) — `WiFi.status()` остаётся `WL_CONNECTED` на мёртвом соединении
 - [igrr/rfc2217-server](https://github.com/igrr/rfc2217-server) — исходник сервера прозрачного serial; патчи описаны в `lib/rfc2217-server/PATCHES.md`
+- [espressif/esp-idf#8553](https://github.com/espressif/esp-idf/issues/8553) — в режиме AP+STA подключение к роутеру уводит точку на его канал и сбрасывает её клиентов: радио одно
+- [esp32.com: Severe Limitation to APSTA Mode](https://www.esp32.com/viewtopic.php?t=8063) — то же своими словами: «AP is forced to be tuned to the exact same frequency»
+- [tzapu/WiFiManager#1178](https://github.com/tzapu/WiFiManager/issues/1178) — как показать выданный роутером адрес: «long going question that simply has not found a solid answer»
+- [ESPHome: mDNS Component](https://esphome.io/components/mdns/) и [espressif/esp-idf#4550](https://github.com/espressif/esp-idf/issues/4550) — почему `*.local` не годится единственным способом: на Android резолвинг в браузере появился только с 12-й версии и ломается о Private DNS
 
 ## Лог и USB на ESP32
 

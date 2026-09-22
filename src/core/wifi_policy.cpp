@@ -16,6 +16,9 @@ void WifiPolicy::reset(uint32_t nowMs) {
     forgetFastPending_ = false;
     restartPending_ = false;
     commandPending_ = false;
+    apHoldPending_ = false;
+    apHoldRunning_ = false;
+    apHoldStartMs_ = nowMs;
 }
 
 uint32_t WifiPolicy::offlineMs(uint32_t nowMs) const { return linkUp_ ? 0 : nowMs - lostSinceMs_; }
@@ -36,9 +39,21 @@ WifiAction WifiPolicy::step(const WifiFacts& facts, uint32_t nowMs) {
             fails_ = 0;
             fastFails_ = 0;
             fastDisabled_ = false;
+            if (apHoldPending_) {  // подключение начато со страницы портала
+                apHoldPending_ = false;
+                apHoldRunning_ = true;
+                apHoldStartMs_ = nowMs;
+            }
         }
-        // Точку доступа гасим, только когда на ней никого нет
-        if (facts.apActive && !facts.apBusy) return WifiAction::StopAp;
+        // Выдержку снимаем здесь, а не сравнением в условии ниже: иначе флаг
+        // остался бы взведённым навсегда и через 49 дней, на переполнении
+        // millis(), разность снова оказалась бы маленькой — точка повисла бы
+        // на ровном месте.
+        if (apHoldRunning_ && nowMs - apHoldStartMs_ >= cfg_.apHoldAfterConnectMs)
+            apHoldRunning_ = false;
+        // Точку доступа гасим, только когда на ней никого нет и человек,
+        // приславший эту сеть со страницы, уже не успеет за ней вернуться
+        if (facts.apActive && !facts.apBusy && !apHoldRunning_) return WifiAction::StopAp;
         return WifiAction::None;
     }
 

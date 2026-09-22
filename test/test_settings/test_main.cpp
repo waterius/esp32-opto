@@ -207,7 +207,7 @@ void test_long_string_is_truncated_not_overflowed() {
 void test_record_from_the_future_is_read_without_upgrades() {
     char json[256];
     snprintf(json, sizeof(json), "{\"v\":%u,\"key\":\"abc\",\"ssid\":\"MyNet\",\"поле_из_будущего\":1}",
-             core::SETTINGS_VERSION + 1);
+             (unsigned)(core::SETTINGS_VERSION + 1));
     Settings s;
     ASSERT_RESULT(LoadResult::FromFuture, settingsFromJson(json, strlen(json), s), "не тот исход загрузки");
     TEST_ASSERT_EQUAL_STRING_MESSAGE("abc", s.key, "откат прошивки потерял ключ облака");
@@ -216,7 +216,8 @@ void test_record_from_the_future_is_read_without_upgrades() {
 
 void test_older_record_goes_through_the_chain() {
     char json[256];
-    snprintf(json, sizeof(json), "{\"v\":%u,\"key\":\"abc\"}", core::SETTINGS_VERSION - 1);
+    snprintf(json, sizeof(json), "{\"v\":%u,\"key\":\"abc\"}",
+             (unsigned)(core::SETTINGS_VERSION - 1));
     Settings s;
     ASSERT_RESULT(LoadResult::Migrated, settingsFromJson(json, strlen(json), s), "не тот исход загрузки");
     TEST_ASSERT_EQUAL_STRING("abc", s.key);
