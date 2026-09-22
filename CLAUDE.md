@@ -90,7 +90,8 @@ src/app.h     общее состояние и флаги запросов с в
 data/         четыре страницы, app.js, style.css — образ LittleFS
 lib/rfc2217-server/  копия igrr/rfc2217-server с патчем (см. PATCHES.md)
 test/                юнит-тесты (см. выше); core_clock.* в корне — общие часы ядра
-tools/        nartis_probe.py — опрос счётчика с компьютера, fake_cloud.py —
+tools/        nartis_probe.py — опрос счётчика с компьютера, lan_scan.html —
+              поиск платы в локальной сети из браузера, fake_cloud.py —
               заглушка облака для проверки отправки и OTA, fake_device.py —
               симулятор устройства: страницы из data/ и API прошивки без платы,
               значения счётчика задаются на его странице /sim
