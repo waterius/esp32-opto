@@ -65,7 +65,6 @@ bool takeForgetFastConnect();
 bool rebootRequested();
 
 // Диагностика для страницы статуса и лога.
-uint16_t lastDisconnectReason();
 uint32_t disconnectCount();
 uint32_t offlineSeconds();
 

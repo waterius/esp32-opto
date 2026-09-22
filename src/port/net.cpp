@@ -512,7 +512,6 @@ bool takeForgetFastConnect() { return policy.takeForgetFastConnect(); }
 
 bool rebootRequested() { return rebootWanted; }
 
-uint16_t lastDisconnectReason() { return lastReason_.load(); }
 uint32_t disconnectCount() { return disconnects_.load(); }
 uint32_t offlineSeconds() { return policy.offlineMs(millis()) / 1000; }
 

@@ -16,6 +16,7 @@ PlatformIO Core 6.2 лежит в `~/.platformio/penv/bin/pio` и **в PATH не
 ~/.platformio/penv/bin/pio run -e esp32-s3 -t upload     # прошивка
 ~/.platformio/penv/bin/pio run -e esp32-s3 -t uploadfs   # веб-страницы из data/
 ~/.platformio/penv/bin/pio test -e native                # юнит-тесты, без платы
+~/.platformio/penv/bin/pio check -e esp32-c3             # cppcheck, порог medium
 ~/.platformio/penv/bin/pio device monitor                # лог, 115200
 python3 tools/fake_cloud.py                              # заглушка облака Waterius
 python3 tools/fake_device.py                             # веб-страницы и API без платы
@@ -60,6 +61,14 @@ Env `native` собирает из `src` только файлы ядра, пе�
 
 При проверке сборки смотреть код возврата самого `pio`: если после него в
 конвейере стоит `grep` или `tail`, код возврата будет от них.
+
+Статический анализ — `pio check` (cppcheck приезжает с PlatformIO, ставить
+нечего), настройки в `[env]` секции `platformio.ini`. Порог `medium`: на `low`
+почти все находки — `unusedFunction` от разбора файла за файлом, и все ложные.
+Сейчас находок нет ни в одном окружении, и так это и держать. Ложное
+срабатывание глушить построчным `// cppcheck-suppress <id>` с объяснением рядом
+(`--inline-suppr` включён), а не порогом и не правкой кода под линтер; id брать
+из вывода целиком — `uninitMemberVarPrivate`, а не `uninitMemberVar`.
 
 **Обзор архитектуры — `docs/10-architecture.md`**: карта модулей, порядок
 вызовов в `loop()`, поток данных, ключи NVS и список инвариантов, которые легко
@@ -132,7 +141,8 @@ Arduino и проверяются тестами на компьютере. `src
 нет на странице лога. У лога пять уровней и **два независимых порога**: в
 USB-serial по умолчанию идёт всё (`trace`), в кольцевой буфер страницы — всё,
 кроме `trace` (`debug`). `Log.println`/`Log.printf` остаются рабочими и считаются
-`info`; для остального есть `Log.error/warn/info/debug/trace`. Байты оптопорта —
+`info`; для остального есть `Log.error/warn/info/debug/trace`. Пороги —
+константы в коде, сеттера нет. Байты оптопорта —
 `debug`, строка состояния раз в 5 секунд — `trace`. Всё, что идёт в USB,
 дублируется в **UART0** (C3: GPIO21 — TX, S3: GPIO43) — чтобы лог можно было
 снять переходником USB-TTL, когда плата не на USB: на аккумуляторе, в щитке, у

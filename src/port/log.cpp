@@ -38,13 +38,6 @@ void LogSink::unlock() {
     if (mutex_) xSemaphoreGive(mutex_);
 }
 
-void LogSink::log(core::LogLevel level, const char* fmt, ...) {
-    va_list args;
-    va_start(args, fmt);
-    vlog(level, fmt, args);
-    va_end(args);
-}
-
 #define LOG_LEVEL_METHOD(name, level)             \
     void LogSink::name(const char* fmt, ...) {    \
         va_list args;                             \
