@@ -174,7 +174,7 @@ class MeterEmulator : public ByteQueue {
     int discs = 0;
 
     MeterEmulator() {
-        // Данные атрибутов — байты из docs/06-nartis-100-exchange.md
+        // Данные атрибутов — байты из docs/05-nartis-100-exchange.md
         set(1, "0.0.96.1.0.255", 2, "09 08 35 32 32 30 37 38 33 39");
         set(1, "0.0.96.1.1.255", 2, "09 10 cd c0 d0 d2 c8 d1 2d 31 30 30 2e 31 32 31 52 4c");
         set(1, "0.0.96.1.2.255", 2, "09 06 32 35 35 2e 30 36");

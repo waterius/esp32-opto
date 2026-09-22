@@ -144,7 +144,7 @@ rfc_enabled, rfc_port, reboot_min, ip, gateway, mask, dns`, плюс `ssid`, `pa
 
 - `platformio.ini:72` — дописать `+<core/settings_io.cpp>` в `build_src_filter`
   у `[env:native]`, иначе тест не слинкуется (инвариант №8 в
-  `docs/10-architecture.md`).
+  `docs/09-architecture.md`).
 - `test/test_settings/test_main.cpp` — новый набор:
   1. round-trip: все поля заполнены → JSON → разбор → совпадают;
   2. ключа нет в записи → поле берёт умолчание, соседние целы;
@@ -160,7 +160,7 @@ rfc_enabled, rfc_port, reboot_min, ip, gateway, mask, dns`, плюс `ssid`, `pa
 
 **Документы:**
 
-- `docs/10-architecture.md:161-182` — таблица ключей (`cfg` вместо `settings`,
+- `docs/09-architecture.md:161-182` — таблица ключей (`cfg` вместо `settings`,
   `settings` помечен «читается один раз при переносе»), раздел «Миграции в
   проекте нет by design» переписывается на новое правило; инвариант №4 (строки
   236-247) — тоже.
@@ -225,7 +225,7 @@ rfc_enabled, rfc_port, reboot_min, ip, gateway, mask, dns`, плюс `ssid`, `pa
 ## Промпт для реализации
 
 > Проект `/Users/dontsov/CODE/esp32-opto`, ветка `reliability`. Читай `CLAUDE.md`
-> и `docs/10-architecture.md` перед работой. Язык проекта — русский: код
+> и `docs/09-architecture.md` перед работой. Язык проекта — русский: код
 > комментируется по-русски, коммиты — conventional commits на русском.
 >
 > **Задача.** Обновление прошивки не должно стоить ни одной настройки. Сейчас
@@ -281,7 +281,7 @@ rfc_enabled, rfc_port, reboot_min, ip, gateway, mask, dns`, плюс `ssid`, `pa
 > 7. Ключ `reading` не трогать: это кэш, теряется безболезненно.
 >
 > **Правило версии** меняется по всему проекту (`src/core/settings.h:11-13`,
-> `CLAUDE.md`, `docs/10-architecture.md:161-182` и инвариант №4 в строках
+> `CLAUDE.md`, `docs/09-architecture.md:161-182` и инвариант №4 в строках
 > 236-247, `docs/superpowers/specs/2026-09-17-esp32-opto-firmware-design.md:320`):
 > `SETTINGS_VERSION` поднимается только при смене **смысла** существующего поля
 > (единицы, интерпретация, имя, разделение); добавление и удаление поля версию не

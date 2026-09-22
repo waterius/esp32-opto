@@ -119,7 +119,7 @@ DEV = {
 
 lock = threading.Lock()
 
-# Кадры из docs/06-nartis-100-exchange.md — в лог идут байт в байт, как у OptoBus.
+# Кадры из docs/05-nartis-100-exchange.md — в лог идут байт в байт, как у OptoBus.
 FRAMES = [
     ('TX', '7e a0 08 02 21 41 93 50 b4 7e'),
     ('RX', '7e a0 21 41 02 21 73 db d8 81 80 14 05 02 01 00 06 02 01 00 07 04 00 00 00 01 08 04 00 00 00 01 69 6d 7e'),
