@@ -23,6 +23,9 @@
   закрыт. Тишина до таймаута — адрес, скорее всего, пуст. Метод косвенный:
   проверка — роутер (.1) обязан найтись.
 
+  Кнопка «Скачать страницу» сохраняет копию этого файла — перенести сканер на
+  другой компьютер, не таская репозиторий. Копию тоже отдавать по http.
+
   Плату видно как «HTTP отвечает» на порту 80; по ссылке открывается её
   страница статуса. Если «вероятно жив» оказались все 254 адреса — запросы
   режет браузер, а не сеть: см. про file:// выше.
@@ -62,14 +65,15 @@
   <label>Таймаут, мс <input id="timeout" type="number" value="3000"></label>
   <label>Порог «быстрого отказа», мс <input id="fast" type="number" value="1000"></label>
 </div>
-<button id="go">Сканировать</button><button id="stop">Стоп</button>
+<button id="go">Сканировать</button><button id="stop">Стоп</button><button id="save">Скачать страницу</button>
 <progress id="prog" value="0" max="1"></progress>
 <div id="status"></div>
 <table><thead><tr><th>IP</th><th>Порт</th><th>мс</th><th>Вывод</th></tr></thead><tbody id="out"></tbody></table>
 <p class="note">
   <b class="open">HTTP отвечает</b>: на порту есть веб-сервер, по IP можно нажать.<br>
   <b class="alive">вероятно жив</b>: устройство быстро отказало в соединении (порт закрыт, но хост есть).<br>
-  Метод основан на времени ответа браузера и не гарантирует результат. Для проверки: адрес роутера (.1) должен найтись.
+  Метод основан на времени ответа браузера и не гарантирует результат. Для проверки: адрес роутера (.1) должен найтись.<br>
+  <b>Скачать страницу</b>: сохраняет копию этого файла — чтобы перенести сканер на другой компьютер. Копию тоже нужно отдавать по http: открытая с диска, она в Chrome не работает.
 </p>
 <script>
 const $ = id => document.getElementById(id);
@@ -146,6 +150,37 @@ $('go').onclick = async () => {
 };
 
 $('stop').onclick = () => { stopped = true; };
+
+// Копия страницы одним файлом. По http берём исходник с сервера — он заведомо
+// чистый; из file:// fetch запрещён, поэтому собираем из DOM, выкинув
+// результаты прошлого скана. Значения полей ввода в разметку не попадают:
+// правка input меняет свойство, а не атрибут, так что копия уедет с
+// умолчаниями.
+async function pageSource() {
+  try {
+    const r = await fetch(location.href, { cache: 'no-store' });
+    if (r.ok) return await r.text();
+  } catch (e) { /* file:// — читаем из DOM */ }
+  const copy = document.documentElement.cloneNode(true);
+  for (const sel of ['#out', '#status', '#warn']) {
+    const el = copy.querySelector(sel);
+    if (el) el.innerHTML = '';
+  }
+  const notes = [...document.childNodes]
+    .filter(n => n.nodeType === Node.COMMENT_NODE)
+    .map(n => `<!--${n.data}-->`)
+    .join('\n');
+  return `<!doctype html>\n${notes}\n${copy.outerHTML}`;
+}
+
+$('save').onclick = async () => {
+  const blob = new Blob([await pageSource()], { type: 'text/html;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'lan_scan.html';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
 </script>
 </body>
 </html>
