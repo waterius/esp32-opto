@@ -61,7 +61,7 @@ python3 tools/fake_cloud.py           # заглушка облака, порт 
 
 | Сигнал | ESP32-S3 | ESP32-C3 |
 |---|---|---|
-| RX (с головки) | GPIO17 | GPIO4 |
-| TX (на головку) | GPIO18 | GPIO5 |
+| RX (с головки) | GPIO13 | GPIO4 |
+| TX (на головку) | GPIO12 | GPIO5 |
 
 Питание головки и доработка платы — в [docs/02-rixutech-cp2102n-teardown.md](docs/02-rixutech-cp2102n-teardown.md).
