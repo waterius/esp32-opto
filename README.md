@@ -17,6 +17,21 @@
 [docs/](docs/README.md). Дизайн прошивки —
 [docs/superpowers/specs/2026-09-17-esp32-opto-firmware-design.md](docs/superpowers/specs/2026-09-17-esp32-opto-firmware-design.md).
 
+## Купить
+
+| Что | Где |
+|---|---|
+| RIXUTECH Кабель-адаптер CP2102 для счетчиков | [aliexpress](https://aliexpress.ru/item/1005003440102435.html) |
+| ESP32-C3 Super Mini | [aliexpress](https://aliexpress.ru/wholesale?SearchText=+ESP32-C3+super+mini) |
+
+Головка идёт недоработанной: чтобы она заработала на C3, плату надо
+переделать — [docs/02-rixutech-cp2102n-teardown.md](docs/02-rixutech-cp2102n-teardown.md).
+
+**Про антенну.** У обычной C3 Super Mini антенна печатная, и её хватает, только
+если счётчик стоит рядом с роутером. Если до роутера больше 3 метров, счётчик
+в металлическом ящике или за бетонной стеной — брать версию с разъёмом и
+внешней антенной.
+
 ## Сборка и прошивка
 
 ```sh
@@ -25,6 +40,22 @@
 ```
 
 Для ESP32-C3 — то же с `-e esp32-c3`.
+
+### Один файл на чип
+
+```sh
+sh tools/build_release.sh        # → dist/electrius-opto-<версия>-esp32-{s3,c3}.bin
+```
+
+Скрипт склеивает загрузчик, таблицу разделов, otadata, приложение и образ
+LittleFS в общий образ с адреса 0 — такой файл берут онлайн-заливщики и
+`esptool.py write_flash 0x0 <файл>`. Заливать из браузера, без установки
+чего-либо — [waterius.github.io/update](https://waterius.github.io/update/):
+выбрать файл из `dist/`, адрес `0x0`, Chrome или Edge.
+
+Образ S3 собирается под **8 МБ флеша** (плата `esp32-s3-devkitc-1`,
+`default_8MB.csv`); у S3 Super Mini попадаются варианты на 4 и 16 МБ — под
+них нужен свой раздел в `platformio.ini`. C3 — 4 МБ, `min_spiffs.csv`.
 
 ## Первое включение
 
