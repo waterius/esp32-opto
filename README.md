@@ -17,6 +17,21 @@
 [docs/](docs/README.md). Дизайн прошивки —
 [docs/superpowers/specs/2026-09-17-esp32-opto-firmware-design.md](docs/superpowers/specs/2026-09-17-esp32-opto-firmware-design.md).
 
+## Купить
+
+| Что | Где |
+|---|---|
+| RIXUTECH Кабель-адаптер CP2102 для счетчиков | [aliexpress](https://aliexpress.ru/item/1005003440102435.html) |
+| ESP32-C3 Super Mini | [aliexpress](https://aliexpress.ru/wholesale?SearchText=+ESP32-C3+super+mini) |
+
+Головка идёт недоработанной: чтобы она заработала на C3, плату надо
+переделать — [docs/02-rixutech-cp2102n-teardown.md](docs/02-rixutech-cp2102n-teardown.md).
+
+**Про антенну.** У обычной C3 Super Mini антенна печатная, и её хватает, только
+если счётчик стоит рядом с роутером. Если до роутера больше 3 метров, счётчик
+в металлическом ящике или за бетонной стеной — брать версию с разъёмом и
+внешней антенной.
+
 ## Сборка и прошивка
 
 ```sh
