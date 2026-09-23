@@ -1,0 +1,498 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1240 1330" width="1240" height="1330"
+     font-family="Golos Text, Helvetica Neue, Arial, sans-serif">
+<defs>
+  <linearGradient id="steel" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#E6E9EC"/><stop offset=".5" stop-color="#C0C6CC"/><stop offset="1" stop-color="#9BA2AA"/>
+  </linearGradient>
+  <linearGradient id="ring" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#EDEFF2"/><stop offset=".45" stop-color="#B5BCC4"/>
+    <stop offset=".7" stop-color="#DCE0E5"/><stop offset="1" stop-color="#A8B0B9"/>
+  </linearGradient>
+  <linearGradient id="puck" x1=".2" y1="0" x2=".7" y2="1">
+    <stop offset="0" stop-color="#5D646E"/><stop offset=".55" stop-color="#3A404A"/><stop offset="1" stop-color="#282D35"/>
+  </linearGradient>
+  <linearGradient id="lcd" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#A9B78C"/><stop offset="1" stop-color="#BCC79F"/>
+  </linearGradient>
+  <linearGradient id="glass" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#E8F1F4"/><stop offset="1" stop-color="#D3E0E5"/>
+  </linearGradient>
+  <pattern id="bars" width="8" height="2" patternUnits="userSpaceOnUse">
+    <rect width="2.2" height="2" fill="#2E3640"/>
+    <rect x="3.6" width="1" height="2" fill="#2E3640"/>
+    <rect x="5.8" width="1.6" height="2" fill="#2E3640"/>
+  </pattern>
+
+  <g id="scrS">
+    <circle r="9" fill="url(#steel)" stroke="#8A9099" stroke-width="1.2"/>
+    <path d="M-5 0H5M0 -5V5" stroke="#767C84" stroke-width="2.4" stroke-linecap="round"/>
+  </g>
+  <g id="scrB">
+    <circle r="11" fill="#CFAE4A" stroke="#9C8130" stroke-width="1.2"/>
+    <path d="M-6 0H6M0 -6V6" stroke="#8A7129" stroke-width="2.6" stroke-linecap="round"/>
+  </g>
+  <g id="pad">
+    <rect x="0" y="-7" width="18" height="14" rx="3" fill="#D8B45C" stroke="#A98A36" stroke-width="1"/>
+    <circle cx="9" cy="0" r="3.4" fill="#2A2E35"/>
+  </g>
+
+  <linearGradient id="pcb" x1=".2" y1="0" x2=".8" y2="1">
+    <stop offset="0" stop-color="#1C8455"/><stop offset=".55" stop-color="#127048"/><stop offset="1" stop-color="#0C5B3A"/>
+  </linearGradient>
+</defs>
+<rect width="1240" height="1330" fill="#FFFFFF"/>
+
+<text x="60" y="42" font-size="21" font-weight="700" fill="#1A1C1F">Как подключить оптоголовку к ESP32-C3 Super Mini</text>
+<text x="60" y="63" font-size="12.5" fill="#6B7076">счётчик НАРТИС-100.121RL · головка RIXUTECH · пять проводов</text>
+
+<text x="60" y="96" font-size="14.5" font-weight="700" fill="#1A1C1F">1. Головка садится на оптопорт счётчика</text>
+<g transform="translate(0,30)">
+
+  <rect x="66" y="78" width="340" height="480" rx="14" fill="#1A1C1F" opacity=".08"/>
+  <rect x="60" y="70" width="340" height="480" rx="14" fill="#F5F5F3" stroke="#B4B8BD" stroke-width="2"/>
+
+  <!-- верхний шильдик -->
+  <rect x="92" y="108" width="34" height="34" rx="7" fill="#3B4654"/>
+  <path d="M101 136V115M117 136V115M101 126l16 4" stroke="#FFFFFF" stroke-width="3.4" stroke-linecap="round"/>
+  <text x="134" y="134" font-size="20" font-weight="700" fill="#2E3640" letter-spacing="1.2">НАРТИС</text>
+
+  <rect x="232" y="104" width="148" height="21" fill="url(#bars)"/>
+  <text x="306" y="138" font-size="9" fill="#5C6167" text-anchor="middle">MAC D61BFFFEFFB8DE94</text>
+
+  <text x="96" y="154" font-size="8.5" fill="#6B7076">ООО «Завод НАРТИС», г. Череповец</text>
+  <text x="96" y="165" font-size="8.5" fill="#6B7076">СДЕЛАНО В РОССИИ</text>
+
+  <g font-size="8.5" fill="#6B7076" text-anchor="end">
+    <text x="380" y="152">A=500 imp/kW·h (imp/kvar·h)</text>
+    <text x="380" y="163">B=10000 imp/kW·h (imp/kvar·h)</text>
+    <text x="380" y="174">Cl. 1 ГОСТ 31819.21-2012</text>
+    <text x="380" y="185">Cl. 1 ГОСТ 31819.23-2012</text>
+    <text x="380" y="196">ГОСТ 31818.11-2012</text>
+    <text x="380" y="207">230 V 5(60) A 50 Hz</text>
+  </g>
+  <rect x="114" y="186" width="74" height="14" fill="url(#bars)"/>
+  <text x="151" y="211" font-size="8.5" fill="#5C6167" text-anchor="middle">№ 22155447   2022г.</text>
+
+  <!-- серая панель -->
+  <rect x="65" y="216" width="330" height="136" rx="3" fill="#DDDED9" stroke="#B4B8BD" stroke-width="1.5"/>
+  <g fill="#9AA0A6">
+    <rect x="118" y="213" width="16" height="6" rx="1"/><rect x="196" y="213" width="16" height="6" rx="1"/>
+    <rect x="274" y="213" width="16" height="6" rx="1"/>
+    <rect x="118" y="349" width="16" height="6" rx="1"/><rect x="196" y="349" width="16" height="6" rx="1"/>
+    <rect x="274" y="349" width="16" height="6" rx="1"/>
+  </g>
+
+  <!-- колонка пиктограмм -->
+  <g stroke="#7E848B" stroke-width="1.1" fill="none">
+    <rect x="72" y="258" width="13" height="10" rx="1.5"/>
+    <circle cx="78.5" cy="278" r="5"/>
+    <path d="M78.5 290l1.6 3.4 3.7.5-2.7 2.6.7 3.7-3.3-1.8-3.3 1.8.7-3.7-2.7-2.6 3.7-.5z"/>
+    <rect x="72" y="304" width="13" height="10" rx="1.5"/><path d="M75 309h7"/>
+  </g>
+  <text x="70" y="250" font-size="8" fill="#5C6167">kW·h</text>
+    <circle cx="79" cy="330" r="5" fill="#E2372B" stroke="#A5251C" stroke-width="1"/>
+
+  <!-- логотип и модель -->
+  <rect x="104" y="232" width="23" height="23" rx="5" fill="#E8681E"/>
+  <path d="M110 250v-13M121 250v-13M110 242l11 3" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round"/>
+  <text x="134" y="250" font-size="15" font-weight="700" fill="#4A5058" letter-spacing=".4">НАРТИС–100.121RL</text>
+
+  <!-- ЖК -->
+  <rect x="103" y="266" width="170" height="49" rx="3" fill="url(#lcd)" stroke="#7E8A66" stroke-width="1.6"/>
+  <text x="188" y="299" font-size="21" fill="#3E4A33" text-anchor="middle"
+        font-family="'JetBrains Mono',ui-monospace,Menlo,monospace" letter-spacing="1.5">01234.5</text>
+  <text x="264" y="310" font-size="8" fill="#4E5A42" text-anchor="end">kW·h</text>
+
+  <!-- оптопорт: магнитное кольцо -->
+  <circle cx="324" cy="283" r="40" fill="#EAEBE7" stroke="#B4B8BD" stroke-width="1.5"/>
+  <circle cx="324" cy="283" r="35" fill="url(#ring)" stroke="#8F969E" stroke-width="1.2"/>
+
+  <!-- мелкий шрифт -->
+  <rect x="150" y="327" width="150" height="3.4" rx="1.7" fill="#B4B8BD"/>
+  <rect x="150" y="334" width="128" height="3.4" rx="1.7" fill="#B4B8BD"/>
+  <text x="225" y="348" font-size="7.5" fill="#8A9099" text-anchor="middle" letter-spacing="1">ПИРС      СПОДЭС</text>
+
+  <!-- низ: схема подключения, кнопка, индикатор -->
+  <rect x="156" y="367" width="74" height="42" rx="2" fill="none" stroke="#9AA0A6" stroke-width="1.2"/>
+  <text x="168" y="379" font-size="8" fill="#6B7076">L</text>
+  <text x="188" y="379" font-size="8" fill="#6B7076">N</text>
+  <g font-size="7" fill="#8A9099">
+    <text x="163" y="391">1</text><text x="179" y="391">2</text><text x="195" y="391">3</text><text x="211" y="391">4</text>
+  </g>
+  <path d="M164 396v8h54v-8M180 396v8M196 396v8" stroke="#9AA0A6" stroke-width="1.1" fill="none"/>
+  <circle cx="248" cy="390" r="6" fill="#C6CACE" stroke="#9AA0A6" stroke-width="1.2"/>
+  <circle cx="332" cy="390" r="5" fill="#4CAF50" stroke="#2E7D32" stroke-width="1"/>
+
+  <!-- клеммная колодка -->
+  <rect x="78" y="424" width="304" height="72" rx="8" fill="#ECECE9" stroke="#C3C6CA" stroke-width="1.5"/>
+  <use href="#scrS" x="156" y="448"/><use href="#scrS" x="208" y="448"/>
+  <use href="#scrS" x="260" y="448"/><use href="#scrS" x="312" y="448"/>
+  <use href="#scrB" x="153" y="484"/><use href="#scrB" x="205" y="484"/>
+  <use href="#scrB" x="258" y="484"/><use href="#scrB" x="310" y="484"/>
+  <use href="#scrS" x="96" y="470"/><use href="#scrS" x="368" y="470"/>
+
+  <!-- прозрачная крышка -->
+  <rect x="99" y="504" width="266" height="42" rx="7" fill="url(#glass)" opacity=".9" stroke="#BCCDD4" stroke-width="1.5"/>
+  <path d="M110 513h244" stroke="#FFFFFF" stroke-width="2.5" opacity=".8" stroke-linecap="round"/>
+
+  
+<text x="230" y="576" font-size="11.5" font-weight="700" fill="#00858A" text-anchor="middle" letter-spacing=".8">СЧЁТЧИК НАРТИС-100.121RL</text>
+
+
+  <circle cx="327" cy="287" r="31" fill="#1A1C1F" opacity=".22"/>
+  <circle cx="324" cy="283" r="31" fill="url(#puck)" stroke="#1E2228" stroke-width="1.6"/>
+  <circle cx="324" cy="283" r="24" fill="none" stroke="#727A85" stroke-width="1.6" opacity=".75"/>
+  <circle cx="324" cy="283" r="12" fill="#22262C" stroke="#4A515B" stroke-width="1.4"/>
+  <path d="M306 268a31 31 0 0 1 21-10" stroke="#98A0AB" stroke-width="2.4" fill="none" stroke-linecap="round" opacity=".7"/>
+
+  
+<path d="M344 262L446 176" stroke="#00858A" stroke-width="1.3" fill="none"/>
+<circle cx="344" cy="262" r="3" fill="#00858A"/>
+<text x="456" y="172" font-size="11.5" font-weight="700" fill="#00858A" text-anchor="start" letter-spacing=".8">ОПТОГОЛОВКА</text>
+<text x="456" y="189" font-size="10.5" fill="#6B7076" text-anchor="start">держится на магнитном кольце оптопорта</text>
+</g>
+<path d="M348 319C440 332 520 362 626 366" fill="none" stroke="#0000002E" stroke-width="16.0" stroke-linecap="round"/>
+<path d="M348 319C440 332 520 362 626 366" fill="none" stroke="#1B1E23" stroke-width="13.0" stroke-linecap="round"/>
+<path d="M348 319C440 332 520 362 626 366" fill="none" stroke="#0000002E" stroke-width="11.0" stroke-linecap="round"/>
+<path d="M348 319C440 332 520 362 626 366" fill="none" stroke="#3B414A" stroke-width="8.0" stroke-linecap="round"/>
+<rect x="620" y="342" width="70" height="48" rx="9" fill="#2B3038" stroke="#1B1E23" stroke-width="1.5"/>
+<rect x="690" y="348" width="96" height="36" rx="2" fill="url(#steel)" stroke="#878E97" stroke-width="1.4"/>
+<rect x="698" y="356" width="72" height="14" rx="1.5" fill="#EDEFF1"/>
+<path d="M690 376h96" stroke="#8A9099" stroke-width="1.2"/>
+<path d="M738 390L822 466" stroke="#00858A" stroke-width="1.3" fill="none"/>
+<circle cx="738" cy="390" r="3" fill="#00858A"/>
+<text x="832" y="462" font-size="11.5" font-weight="700" fill="#00858A" text-anchor="start" letter-spacing=".8">USB-A — ПИТАНИЕ 5 В</text>
+<text x="832" y="479" font-size="10.5" fill="#6B7076" text-anchor="start">воткнуть в любую зарядку на 5 В</text>
+<line x1="60" y1="662" x2="1180" y2="662" stroke="#DDE0E3" stroke-width="1.5"/>
+<text x="60" y="690" font-size="14.5" font-weight="700" fill="#1A1C1F">2. Пять проводов с платы головки на плату ESP32-C3</text>
+<path d="M22 760C60 762 96 768 150 786" fill="none" stroke="#0000002E" stroke-width="15.0" stroke-linecap="round"/>
+<path d="M22 760C60 762 96 768 150 786" fill="none" stroke="#1B1E23" stroke-width="12.0" stroke-linecap="round"/>
+<path d="M22 760C60 762 96 768 150 786" fill="none" stroke="#0000002E" stroke-width="10.0" stroke-linecap="round"/>
+<path d="M22 760C60 762 96 768 150 786" fill="none" stroke="#3B414A" stroke-width="7.0" stroke-linecap="round"/>
+<g transform="translate(65.2,741.0) scale(0.4200)">
+<circle cx="440" cy="450" r="468" fill="url(#pcb)" stroke="#0A4A30" stroke-width="7"/>
+<circle cx="440" cy="450" r="452" fill="none" stroke="#2FA06C" stroke-width="3" opacity=".3"/>
+<path d="M243 339V372" fill="none" stroke="#C3D89A" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M289 345L285 428" fill="none" stroke="#C3D89A" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M352 345V423L368 440" fill="none" stroke="#C3D89A" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M421 345V484L445 503H479L497 519" fill="none" stroke="#C3D89A" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M628 46H516L478 92V152" fill="none" stroke="#C3D89A" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M572 84H526" fill="none" stroke="#C3D89A" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M572 154H526" fill="none" stroke="#C3D89A" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M668 118H700L714 100" fill="none" stroke="#C3D89A" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M668 118L690 143V300" fill="none" stroke="#C3D89A" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M684 149V126" fill="none" stroke="#C3D89A" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M684 272V302" fill="none" stroke="#C3D89A" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M412 176H372L352 196" fill="none" stroke="#C3D89A" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M561 205H536" fill="none" stroke="#C3D89A" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M611 205H636" fill="none" stroke="#C3D89A" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M563 286H522L500 304" fill="none" stroke="#C3D89A" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M563 322H526L502 344" fill="none" stroke="#C3D89A" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M672 366H650L538 385H470L453 404" fill="none" stroke="#C3D89A" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M814 330H842" fill="none" stroke="#C3D89A" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M814 399H830" fill="none" stroke="#C3D89A" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M846 440V474" fill="none" stroke="#C3D89A" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M814 488H830" fill="none" stroke="#C3D89A" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M742 551V580L720 600" fill="none" stroke="#C3D89A" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M502 482L464 502L453 528" fill="none" stroke="#C3D89A" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M590 480L510 503L486 528" fill="none" stroke="#C3D89A" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M203 318H228" fill="none" stroke="#C3D89A" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M203 417H232" fill="none" stroke="#C3D89A" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M203 515H244" fill="none" stroke="#C3D89A" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M203 600H250" fill="none" stroke="#C3D89A" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M251 582H212" fill="none" stroke="#C3D89A" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M220 674L188 700" fill="none" stroke="#C3D89A" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M274 711V690" fill="none" stroke="#C3D89A" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M328 670V708" fill="none" stroke="#C3D89A" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M430 789H394" fill="none" stroke="#C3D89A" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M514 789H482" fill="none" stroke="#C3D89A" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M570 786H548" fill="none" stroke="#C3D89A" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M617 622H596" fill="none" stroke="#C3D89A" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M617 698H596" fill="none" stroke="#C3D89A" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="245" cy="374" r="12" fill="#CBDC9E"/>
+<circle cx="245" cy="374" r="7" fill="#0C5B3A"/>
+<circle cx="322" cy="521" r="12" fill="#CBDC9E"/>
+<circle cx="322" cy="521" r="7" fill="#0C5B3A"/>
+<circle cx="365" cy="533" r="12" fill="#CBDC9E"/>
+<circle cx="365" cy="533" r="7" fill="#0C5B3A"/>
+<circle cx="392" cy="786" r="12" fill="#CBDC9E"/>
+<circle cx="392" cy="786" r="7" fill="#0C5B3A"/>
+<circle cx="479" cy="789" r="12" fill="#CBDC9E"/>
+<circle cx="479" cy="789" r="7" fill="#0C5B3A"/>
+<circle cx="546" cy="786" r="12" fill="#CBDC9E"/>
+<circle cx="546" cy="786" r="7" fill="#0C5B3A"/>
+<circle cx="322" cy="828" r="12" fill="#CBDC9E"/>
+<circle cx="322" cy="828" r="7" fill="#0C5B3A"/>
+<circle cx="348" cy="828" r="12" fill="#CBDC9E"/>
+<circle cx="348" cy="828" r="7" fill="#0C5B3A"/>
+<circle cx="372" cy="828" r="12" fill="#CBDC9E"/>
+<circle cx="372" cy="828" r="7" fill="#0C5B3A"/>
+<circle cx="640" cy="345" r="12" fill="#CBDC9E"/>
+<circle cx="640" cy="345" r="7" fill="#0C5B3A"/>
+<ellipse cx="250" cy="196" rx="78" ry="72" fill="#0A2C1D" stroke="#0A4A30" stroke-width="6"/>
+<circle cx="795" cy="212" r="50" fill="#CFD6D2" stroke="#9AA6A0" stroke-width="5"/>
+<circle cx="795" cy="212" r="29" fill="#8C9A94"/>
+<path d="M785 202l20 20M805 202l-20 20" stroke="#6E7A75" stroke-width="7"/>
+<circle cx="182" cy="772" r="50" fill="#CFD6D2" stroke="#9AA6A0" stroke-width="5"/>
+<circle cx="182" cy="772" r="29" fill="#8C9A94"/>
+<path d="M172 762l20 20M192 762l-20 20" stroke="#6E7A75" stroke-width="7"/>
+<rect x="110" y="264" width="94" height="404" fill="none" stroke="#E2EFE6" stroke-width="5"/>
+<text x="86" y="300" font-size="30" fill="#E2EFE6" text-anchor="middle">J1</text>
+<circle cx="158" cy="318" r="33" fill="#C6CBD0" stroke="#9AA6A0" stroke-width="5"/>
+<circle cx="158" cy="318" r="11" fill="#0C5B3A"/>
+<circle cx="158" cy="417" r="33" fill="#C6CBD0" stroke="#9AA6A0" stroke-width="5"/>
+<circle cx="158" cy="417" r="11" fill="#0C5B3A"/>
+<circle cx="158" cy="515" r="33" fill="#C6CBD0" stroke="#9AA6A0" stroke-width="5"/>
+<circle cx="158" cy="515" r="11" fill="#0C5B3A"/>
+<circle cx="158" cy="600" r="33" fill="#C6CBD0" stroke="#9AA6A0" stroke-width="5"/>
+<circle cx="158" cy="600" r="11" fill="#0C5B3A"/>
+<rect x="55" y="412" width="42" height="28" rx="3" fill="#15171B"/>
+<rect x="55" y="412" width="10" height="28" rx="2" fill="#C6CBD0"/>
+<rect x="87" y="412" width="10" height="28" rx="2" fill="#C6CBD0"/>
+<text x="76" y="398" font-size="28" fill="#E2EFE6" text-anchor="middle">C6</text>
+<rect x="55" y="448" width="42" height="28" rx="3" fill="#15171B"/>
+<rect x="55" y="448" width="10" height="28" rx="2" fill="#C6CBD0"/>
+<rect x="87" y="448" width="10" height="28" rx="2" fill="#C6CBD0"/>
+<text x="78" y="508" font-size="28" fill="#E2EFE6" text-anchor="middle">C5</text>
+<circle cx="284" cy="454" r="36" fill="#C6CBD0" stroke="#9AA6A0" stroke-width="5"/>
+<circle cx="284" cy="454" r="12" fill="#0C5B3A"/>
+<circle cx="381" cy="456" r="36" fill="#C6CBD0" stroke="#9AA6A0" stroke-width="5"/>
+<circle cx="381" cy="456" r="12" fill="#0C5B3A"/>
+<circle cx="502" cy="450" r="36" fill="#C6CBD0" stroke="#9AA6A0" stroke-width="5"/>
+<circle cx="502" cy="450" r="12" fill="#0C5B3A"/>
+<circle cx="595" cy="445" r="36" fill="#C6CBD0" stroke="#9AA6A0" stroke-width="5"/>
+<circle cx="595" cy="445" r="12" fill="#0C5B3A"/>
+<rect x="229" y="307" width="208" height="40" fill="none" stroke="#E2EFE6" stroke-width="5"/>
+<rect x="234" y="313" width="60" height="28" rx="3" fill="#15171B"/>
+<rect x="234" y="313" width="15" height="28" rx="2" fill="#C6CBD0"/>
+<rect x="279" y="313" width="15" height="28" rx="2" fill="#C6CBD0"/>
+<text x="264" y="300" font-size="30" fill="#E2EFE6" text-anchor="middle">R6</text>
+<rect x="307" y="313" width="52" height="28" rx="3" fill="#15171B"/>
+<rect x="307" y="313" width="13" height="28" rx="2" fill="#C6CBD0"/>
+<rect x="346" y="313" width="13" height="28" rx="2" fill="#C6CBD0"/>
+<text x="333" y="300" font-size="30" fill="#E2EFE6" text-anchor="middle">R7</text>
+<rect x="374" y="313" width="54" height="28" rx="3" fill="#15171B"/>
+<rect x="374" y="313" width="14" height="28" rx="2" fill="#C6CBD0"/>
+<rect x="414" y="313" width="14" height="28" rx="2" fill="#C6CBD0"/>
+<text x="401" y="300" font-size="30" fill="#E2EFE6" text-anchor="middle">R2</text>
+<rect x="561" y="266" width="72" height="75" fill="none" stroke="#E2EFE6" stroke-width="5"/>
+<rect x="565" y="274" width="46" height="24" rx="3" fill="#15171B"/>
+<rect x="565" y="274" width="11" height="24" rx="2" fill="#C6CBD0"/>
+<rect x="600" y="274" width="11" height="24" rx="2" fill="#C6CBD0"/>
+<text x="541" y="292" font-size="28" fill="#E2EFE6" text-anchor="end">R1</text>
+<rect x="565" y="309" width="46" height="24" rx="3" fill="#15171B"/>
+<rect x="565" y="309" width="11" height="24" rx="2" fill="#C6CBD0"/>
+<rect x="600" y="309" width="11" height="24" rx="2" fill="#C6CBD0"/>
+<text x="541" y="327" font-size="28" fill="#E2EFE6" text-anchor="end">R5</text>
+<rect x="572" y="65" width="55" height="106" rx="4" fill="#15171B"/>
+<rect x="526" y="73" width="46" height="30" rx="4" fill="#C6CBD0"/>
+<rect x="526" y="133" width="46" height="30" rx="4" fill="#C6CBD0"/>
+<rect x="627" y="103" width="46" height="30" rx="4" fill="#C6CBD0"/>
+<text x="600" y="46" font-size="30" fill="#E2EFE6" text-anchor="middle">V1</text>
+<rect x="412" y="151" width="48" height="104" rx="4" fill="#15171B"/>
+<rect x="460" y="159" width="46" height="30" rx="4" fill="#C6CBD0"/>
+<rect x="460" y="217" width="46" height="30" rx="4" fill="#C6CBD0"/>
+<rect x="366" y="188" width="46" height="30" rx="4" fill="#C6CBD0"/>
+<text x="370" y="172" font-size="30" fill="#E2EFE6" text-anchor="end">V3</text>
+<rect x="717" y="309" width="49" height="111" rx="4" fill="#15171B"/>
+<rect x="766" y="317" width="46" height="30" rx="4" fill="#C6CBD0"/>
+<rect x="766" y="382" width="46" height="30" rx="4" fill="#C6CBD0"/>
+<rect x="671" y="349" width="46" height="30" rx="4" fill="#C6CBD0"/>
+<text x="838" y="328" font-size="30" fill="#E2EFE6" text-anchor="start">V2</text>
+<rect x="717" y="443" width="49" height="108" rx="4" fill="#15171B"/>
+<rect x="671" y="451" width="46" height="30" rx="4" fill="#C6CBD0"/>
+<rect x="671" y="513" width="46" height="30" rx="4" fill="#C6CBD0"/>
+<rect x="766" y="482" width="46" height="30" rx="4" fill="#C6CBD0"/>
+<text x="654" y="536" font-size="30" fill="#E2EFE6" text-anchor="end">V4</text>
+<rect x="654" y="139" width="67" height="162" fill="none" stroke="#E2EFE6" stroke-width="5"/>
+<rect x="664" y="149" width="41" height="121" rx="3" fill="#15171B"/>
+<rect x="664" y="149" width="41" height="31" rx="2" fill="#C6CBD0"/>
+<rect x="664" y="239" width="41" height="31" rx="2" fill="#C6CBD0"/>
+<text x="726" y="132" font-size="30" fill="#E2EFE6" text-anchor="middle">D1</text>
+<rect x="561" y="192" width="50" height="27" rx="3" fill="#15171B"/>
+<rect x="561" y="192" width="13" height="27" rx="2" fill="#C6CBD0"/>
+<rect x="598" y="192" width="13" height="27" rx="2" fill="#C6CBD0"/>
+<text x="590" y="258" font-size="28" fill="#E2EFE6" text-anchor="middle">C1</text>
+<rect x="828" y="385" width="36" height="55" rx="3" fill="#15171B"/>
+<rect x="828" y="385" width="36" height="14" rx="2" fill="#C6CBD0"/>
+<rect x="828" y="426" width="36" height="14" rx="2" fill="#C6CBD0"/>
+<text x="852" y="366" font-size="28" fill="#E2EFE6" text-anchor="middle">R3</text>
+<rect x="828" y="473" width="36" height="55" rx="3" fill="#15171B"/>
+<rect x="828" y="473" width="36" height="14" rx="2" fill="#C6CBD0"/>
+<rect x="828" y="514" width="36" height="14" rx="2" fill="#C6CBD0"/>
+<text x="820" y="560" font-size="28" fill="#E2EFE6" text-anchor="middle">R4</text>
+<rect x="244" y="606" width="94" height="56" rx="4" fill="#15171B"/>
+<rect x="251" y="578" width="30" height="26" rx="3" fill="#C6CBD0"/>
+<rect x="308" y="578" width="30" height="26" rx="3" fill="#C6CBD0"/>
+<rect x="251" y="664" width="30" height="26" rx="3" fill="#C6CBD0"/>
+<rect x="308" y="664" width="30" height="26" rx="3" fill="#C6CBD0"/>
+<text x="258" y="556" font-size="28" fill="#E2EFE6" text-anchor="middle">U1</text>
+<rect x="303" y="747" width="74" height="68" fill="none" stroke="#E2EFE6" stroke-width="5"/>
+<rect x="254" y="711" width="40" height="44" rx="3" fill="#15171B"/>
+<rect x="254" y="711" width="40" height="11" rx="2" fill="#C6CBD0"/>
+<rect x="254" y="744" width="40" height="11" rx="2" fill="#C6CBD0"/>
+<text x="322" y="726" font-size="28" fill="#E2EFE6" text-anchor="start">L1</text>
+<rect x="309" y="754" width="28" height="54" rx="3" fill="#15171B"/>
+<rect x="309" y="754" width="28" height="14" rx="2" fill="#C6CBD0"/>
+<rect x="309" y="794" width="28" height="14" rx="2" fill="#C6CBD0"/>
+<text x="288" y="838" font-size="28" fill="#E2EFE6" text-anchor="middle">C8</text>
+<rect x="345" y="754" width="28" height="54" rx="3" fill="#15171B"/>
+<rect x="345" y="754" width="28" height="14" rx="2" fill="#C6CBD0"/>
+<rect x="345" y="794" width="28" height="14" rx="2" fill="#C6CBD0"/>
+<text x="398" y="838" font-size="28" fill="#E2EFE6" text-anchor="middle">C7</text>
+<rect x="424" y="768" width="62" height="42" fill="none" stroke="#E2EFE6" stroke-width="5"/>
+<rect x="432" y="776" width="48" height="26" rx="3" fill="#15171B"/>
+<rect x="432" y="776" width="12" height="26" rx="2" fill="#C6CBD0"/>
+<rect x="468" y="776" width="12" height="26" rx="2" fill="#C6CBD0"/>
+<text x="476" y="838" font-size="28" fill="#E2EFE6" text-anchor="middle">C9</text>
+<rect x="564" y="766" width="64" height="42" fill="none" stroke="#E2EFE6" stroke-width="5"/>
+<rect x="572" y="774" width="48" height="26" rx="3" fill="#15171B"/>
+<rect x="572" y="774" width="12" height="26" rx="2" fill="#C6CBD0"/>
+<rect x="608" y="774" width="12" height="26" rx="2" fill="#C6CBD0"/>
+<text x="630" y="826" font-size="28" fill="#E2EFE6" text-anchor="middle">C10</text>
+<rect x="612" y="584" width="98" height="76" fill="none" stroke="#E2EFE6" stroke-width="5"/>
+<rect x="620" y="590" width="82" height="62" rx="4" fill="#D8B24C"/>
+<rect x="620" y="590" width="16" height="62" rx="2" fill="#C6CBD0"/>
+<text x="800" y="604" font-size="28" fill="#E2EFE6" text-anchor="middle">C4</text>
+<rect x="612" y="660" width="98" height="76" fill="none" stroke="#E2EFE6" stroke-width="5"/>
+<rect x="620" y="666" width="82" height="62" rx="4" fill="#D8B24C"/>
+<rect x="620" y="666" width="16" height="62" rx="2" fill="#C6CBD0"/>
+<text x="706" y="772" font-size="28" fill="#E2EFE6" text-anchor="middle">C3</text>
+<path d="M364 530h32m-32 0v32" fill="none" stroke="#E2EFE6" stroke-width="5"/>
+<path d="M615 530h-32m32 0v32" fill="none" stroke="#E2EFE6" stroke-width="5"/>
+<path d="M364 752h32m-32 0v-32" fill="none" stroke="#E2EFE6" stroke-width="5"/>
+<path d="M615 752h-32m32 0v-32" fill="none" stroke="#E2EFE6" stroke-width="5"/>
+<rect x="406" y="534" width="12" height="14" rx="2" fill="#C6CBD0"/>
+<rect x="406" y="734" width="12" height="14" rx="2" fill="#C6CBD0"/>
+<rect x="386" y="554" width="14" height="12" rx="2" fill="#C6CBD0"/>
+<rect x="579" y="554" width="14" height="12" rx="2" fill="#C6CBD0"/>
+<rect x="428" y="534" width="12" height="14" rx="2" fill="#C6CBD0"/>
+<rect x="428" y="734" width="12" height="14" rx="2" fill="#C6CBD0"/>
+<rect x="386" y="576" width="14" height="12" rx="2" fill="#C6CBD0"/>
+<rect x="579" y="576" width="14" height="12" rx="2" fill="#C6CBD0"/>
+<rect x="450" y="534" width="12" height="14" rx="2" fill="#C6CBD0"/>
+<rect x="450" y="734" width="12" height="14" rx="2" fill="#C6CBD0"/>
+<rect x="386" y="598" width="14" height="12" rx="2" fill="#C6CBD0"/>
+<rect x="579" y="598" width="14" height="12" rx="2" fill="#C6CBD0"/>
+<rect x="472" y="534" width="12" height="14" rx="2" fill="#C6CBD0"/>
+<rect x="472" y="734" width="12" height="14" rx="2" fill="#C6CBD0"/>
+<rect x="386" y="620" width="14" height="12" rx="2" fill="#C6CBD0"/>
+<rect x="579" y="620" width="14" height="12" rx="2" fill="#C6CBD0"/>
+<rect x="494" y="534" width="12" height="14" rx="2" fill="#C6CBD0"/>
+<rect x="494" y="734" width="12" height="14" rx="2" fill="#C6CBD0"/>
+<rect x="386" y="642" width="14" height="12" rx="2" fill="#C6CBD0"/>
+<rect x="579" y="642" width="14" height="12" rx="2" fill="#C6CBD0"/>
+<rect x="516" y="534" width="12" height="14" rx="2" fill="#C6CBD0"/>
+<rect x="516" y="734" width="12" height="14" rx="2" fill="#C6CBD0"/>
+<rect x="386" y="664" width="14" height="12" rx="2" fill="#C6CBD0"/>
+<rect x="579" y="664" width="14" height="12" rx="2" fill="#C6CBD0"/>
+<rect x="538" y="534" width="12" height="14" rx="2" fill="#C6CBD0"/>
+<rect x="538" y="734" width="12" height="14" rx="2" fill="#C6CBD0"/>
+<rect x="386" y="686" width="14" height="12" rx="2" fill="#C6CBD0"/>
+<rect x="579" y="686" width="14" height="12" rx="2" fill="#C6CBD0"/>
+<rect x="560" y="534" width="12" height="14" rx="2" fill="#C6CBD0"/>
+<rect x="560" y="734" width="12" height="14" rx="2" fill="#C6CBD0"/>
+<rect x="386" y="708" width="14" height="12" rx="2" fill="#C6CBD0"/>
+<rect x="579" y="708" width="14" height="12" rx="2" fill="#C6CBD0"/>
+<rect x="396" y="544" width="187" height="194" rx="8" fill="#15171B"/>
+<text x="490" y="652" font-size="29" fill="#8A9099" text-anchor="middle">CP2102N</text>
+<text x="490" y="688" font-size="25" fill="#6E757E" text-anchor="middle">A02TVY</text>
+<text x="578" y="522" font-size="30" fill="#E2EFE6" text-anchor="end">U2</text>
+<path d="M231 340l24 24M255 340l-24 24" stroke="#E2372B" stroke-width="10" stroke-linecap="round"/>
+<path d="M340 378l24 24M364 378l-24 24" stroke="#E2372B" stroke-width="10" stroke-linecap="round"/>
+</g>
+<text x="250" y="1162" font-size="11.5" font-weight="700" fill="#00858A" text-anchor="middle" letter-spacing=".8">ПЛАТА ГОЛОВКИ RIXUTECH</text>
+
+<rect x="806" y="816" width="200" height="245" rx="9" fill="#1A1C1F" opacity=".10"/>
+<rect x="800" y="810" width="200" height="245" rx="9" fill="#21262E" stroke="#12151A" stroke-width="1.6"/>
+<rect x="808" y="818" width="184" height="229" rx="6" fill="none" stroke="#5E6874" stroke-width="1"/>
+<rect x="872" y="792" width="56" height="28" rx="6" fill="url(#steel)" stroke="#878E97" stroke-width="1.3"/>
+<rect x="881" y="799" width="38" height="12" rx="6" fill="#474D56"/>
+<text x="900" y="786" font-size="9" fill="#6B7076" text-anchor="middle">USB-C</text>
+<rect x="873" y="1021" width="54" height="26" rx="3" fill="#EFE8D6" stroke="#C7BFA6" stroke-width="1.2"/>
+<path d="M881 1027h38" stroke="#C7BFA6" stroke-width="1.4"/>
+<path d="M881 1034h38" stroke="#C7BFA6" stroke-width="1.4"/>
+<path d="M881 1041h38" stroke="#C7BFA6" stroke-width="1.4"/>
+<rect x="848" y="886" width="104" height="84" rx="4" fill="url(#steel)" stroke="#878E97" stroke-width="1.3"/>
+<text x="900" y="932" font-size="11" fill="#6E757E" text-anchor="middle" letter-spacing="1.2">ESP32</text>
+<use href="#pad" x="800" y="838.0"/>
+<use href="#pad" x="982" y="838.0"/>
+<text x="824" y="842.0" font-size="10.5" fill="#E6E9ED" font-family="JetBrains Mono, ui-monospace, Menlo, monospace">5V</text>
+<text x="976" y="842.0" font-size="10.5" fill="#E6E9ED" font-family="JetBrains Mono, ui-monospace, Menlo, monospace" text-anchor="end">5</text>
+<use href="#pad" x="800" y="867.0"/>
+<use href="#pad" x="982" y="867.0"/>
+<text x="824" y="871.0" font-size="10.5" fill="#E6E9ED" font-family="JetBrains Mono, ui-monospace, Menlo, monospace">G</text>
+<text x="976" y="871.0" font-size="10.5" fill="#E6E9ED" font-family="JetBrains Mono, ui-monospace, Menlo, monospace" text-anchor="end">6</text>
+<use href="#pad" x="800" y="896.0"/>
+<use href="#pad" x="982" y="896.0"/>
+<text x="824" y="900.0" font-size="10.5" fill="#E6E9ED" font-family="JetBrains Mono, ui-monospace, Menlo, monospace">3V3</text>
+<text x="976" y="900.0" font-size="10.5" fill="#E6E9ED" font-family="JetBrains Mono, ui-monospace, Menlo, monospace" text-anchor="end">7</text>
+<use href="#pad" x="800" y="925.0"/>
+<use href="#pad" x="982" y="925.0"/>
+<text x="824" y="929.0" font-size="10.5" fill="#E6E9ED" font-family="JetBrains Mono, ui-monospace, Menlo, monospace">4</text>
+<text x="976" y="929.0" font-size="10.5" fill="#E6E9ED" font-family="JetBrains Mono, ui-monospace, Menlo, monospace" text-anchor="end">8</text>
+<use href="#pad" x="800" y="954.0"/>
+<use href="#pad" x="982" y="954.0"/>
+<text x="824" y="958.0" font-size="10.5" fill="#E6E9ED" font-family="JetBrains Mono, ui-monospace, Menlo, monospace">3</text>
+<text x="976" y="958.0" font-size="10.5" fill="#E6E9ED" font-family="JetBrains Mono, ui-monospace, Menlo, monospace" text-anchor="end">9</text>
+<use href="#pad" x="800" y="983.0"/>
+<use href="#pad" x="982" y="983.0"/>
+<text x="824" y="987.0" font-size="10.5" fill="#E6E9ED" font-family="JetBrains Mono, ui-monospace, Menlo, monospace">2</text>
+<text x="976" y="987.0" font-size="10.5" fill="#E6E9ED" font-family="JetBrains Mono, ui-monospace, Menlo, monospace" text-anchor="end">10</text>
+<use href="#pad" x="800" y="1012.0"/>
+<use href="#pad" x="982" y="1012.0"/>
+<text x="824" y="1016.0" font-size="10.5" fill="#E6E9ED" font-family="JetBrains Mono, ui-monospace, Menlo, monospace">1</text>
+<text x="976" y="1016.0" font-size="10.5" fill="#E6E9ED" font-family="JetBrains Mono, ui-monospace, Menlo, monospace" text-anchor="end">20</text>
+<use href="#pad" x="800" y="1041.0"/>
+<use href="#pad" x="982" y="1041.0"/>
+<text x="824" y="1045.0" font-size="10.5" fill="#E6E9ED" font-family="JetBrains Mono, ui-monospace, Menlo, monospace">0</text>
+<text x="976" y="1045.0" font-size="10.5" fill="#E6E9ED" font-family="JetBrains Mono, ui-monospace, Menlo, monospace" text-anchor="end">21</text>
+<text x="900" y="1091" font-size="11.5" font-weight="700" fill="#00858A" text-anchor="middle" letter-spacing=".8">ESP32-C3 SUPER MINI</text>
+
+<path d="M131.6 874.6C330 873 580 838 800 838" fill="none" stroke="#0000002E" stroke-width="10.0" stroke-linecap="round"/>
+<path d="M131.6 874.6C330 873 580 838 800 838" fill="none" stroke="#E2372B" stroke-width="7.0" stroke-linecap="round"/>
+<path d="M131.6 993.0C350 993 580 867 800 867" fill="none" stroke="#0000002E" stroke-width="10.0" stroke-linecap="round"/>
+<path d="M131.6 993.0C350 993 580 867 800 867" fill="none" stroke="#2B2E33" stroke-width="7.0" stroke-linecap="round"/>
+<path d="M225.2 932.5C400 930 600 896 800 896" fill="none" stroke="#0000002E" stroke-width="10.0" stroke-linecap="round"/>
+<path d="M225.2 932.5C400 930 600 896 800 896" fill="none" stroke="#F2921D" stroke-width="7.0" stroke-linecap="round"/>
+<path d="M355.8 894.7C500 896 650 925 800 925" fill="none" stroke="#0000002E" stroke-width="10.0" stroke-linecap="round"/>
+<path d="M355.8 894.7C500 896 650 925 800 925" fill="none" stroke="#3FA34D" stroke-width="7.0" stroke-linecap="round"/>
+<path d="M167.3 878.3C300 800 640 742 912 752C1024 762 1074 806 1000 838" fill="none" stroke="#0000002E" stroke-width="10.0" stroke-linecap="round"/>
+<path d="M167.3 878.3C300 800 640 742 912 752C1024 762 1074 806 1000 838" fill="none" stroke="#F2C31F" stroke-width="7.0" stroke-linecap="round"/>
+<circle cx="131.6" cy="874.6" r="7" fill="#FFFFFF" stroke="#E2372B" stroke-width="3"/>
+<circle cx="131.6" cy="993.0" r="7" fill="#FFFFFF" stroke="#2B2E33" stroke-width="3"/>
+<circle cx="225.2" cy="932.5" r="7" fill="#FFFFFF" stroke="#F2921D" stroke-width="3"/>
+<circle cx="355.8" cy="894.7" r="7" fill="#FFFFFF" stroke="#3FA34D" stroke-width="3"/>
+<circle cx="167.3" cy="878.3" r="7" fill="#FFFFFF" stroke="#F2C31F" stroke-width="3"/>
+<path d="M165 890L470 1126" stroke="#00858A" stroke-width="1.3" fill="none"/>
+<circle cx="165" cy="890" r="3" fill="#00858A"/>
+<text x="480" y="1122" font-size="11.5" font-weight="700" fill="#00858A" text-anchor="start" letter-spacing=".8">ДВА РАЗРЕЗА — СНАЧАЛА ОНИ</text>
+<text x="480" y="1139" font-size="10.5" fill="#6B7076" text-anchor="start">перерезать дорожку под R6 и дорожку от R7 вниз к площадке</text>
+<line x1="60" y1="1196" x2="1180" y2="1196" stroke="#DDE0E3" stroke-width="1.5"/>
+<g transform="translate(60,1226)">
+<rect x="0" y="-8" width="22" height="9" rx="4.5" fill="#E2372B"/>
+<text x="30" y="0" font-size="11.5" font-weight="700" fill="#1A1C1F">пин 5V</text>
+<text x="30" y="16" font-size="11" fill="#6B7076">красный провод кабеля</text>
+</g>
+<g transform="translate(290,1226)">
+<rect x="0" y="-8" width="22" height="9" rx="4.5" fill="#2B2E33"/>
+<text x="30" y="0" font-size="11.5" font-weight="700" fill="#1A1C1F">пин G</text>
+<text x="30" y="16" font-size="11" fill="#6B7076">чёрный провод кабеля</text>
+</g>
+<g transform="translate(520,1226)">
+<rect x="0" y="-8" width="22" height="9" rx="4.5" fill="#F2921D"/>
+<text x="30" y="0" font-size="11.5" font-weight="700" fill="#1A1C1F">пин 3V3</text>
+<text x="30" y="16" font-size="11" fill="#6B7076">большая площадка под R7</text>
+</g>
+<g transform="translate(750,1226)">
+<rect x="0" y="-8" width="22" height="9" rx="4.5" fill="#3FA34D"/>
+<text x="30" y="0" font-size="11.5" font-weight="700" fill="#1A1C1F">пин 4</text>
+<text x="30" y="16" font-size="11" fill="#6B7076">левая ножка V2</text>
+</g>
+<g transform="translate(980,1226)">
+<rect x="0" y="-8" width="22" height="9" rx="4.5" fill="#F2C31F"/>
+<text x="30" y="0" font-size="11.5" font-weight="700" fill="#1A1C1F">пин 5</text>
+<text x="30" y="16" font-size="11" fill="#6B7076">левая площадка R6</text>
+</g>
+<text x="60" y="1284" font-size="10.5" fill="#8A9099">Какой провод в кабеле 5 В, а какой земля — проверить тестером, воткнув вилку в зарядку.</text>
+</svg>
