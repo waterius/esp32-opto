@@ -1,0 +1,125 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1240 560" width="1240" height="560"
+     font-family="Golos Text, Helvetica Neue, Arial, sans-serif">
+<defs>
+  <linearGradient id="steel" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#E6E9EC"/><stop offset=".5" stop-color="#C0C6CC"/><stop offset="1" stop-color="#9BA2AA"/>
+  </linearGradient>
+  <linearGradient id="ring" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#EDEFF2"/><stop offset=".45" stop-color="#B5BCC4"/>
+    <stop offset=".7" stop-color="#DCE0E5"/><stop offset="1" stop-color="#A8B0B9"/>
+  </linearGradient>
+  <linearGradient id="puck" x1=".2" y1="0" x2=".7" y2="1">
+    <stop offset="0" stop-color="#5D646E"/><stop offset=".55" stop-color="#3A404A"/><stop offset="1" stop-color="#282D35"/>
+  </linearGradient>
+  <linearGradient id="lcd" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#A9B78C"/><stop offset="1" stop-color="#BCC79F"/>
+  </linearGradient>
+  <linearGradient id="glass" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#E8F1F4"/><stop offset="1" stop-color="#D3E0E5"/>
+  </linearGradient>
+  <pattern id="bars" width="8" height="2" patternUnits="userSpaceOnUse">
+    <rect width="2.2" height="2" fill="#2E3640"/>
+    <rect x="3.6" width="1" height="2" fill="#2E3640"/>
+    <rect x="5.8" width="1.6" height="2" fill="#2E3640"/>
+  </pattern>
+
+  <g id="scrS">
+    <circle r="9" fill="url(#steel)" stroke="#8A9099" stroke-width="1.2"/>
+    <path d="M-5 0H5M0 -5V5" stroke="#767C84" stroke-width="2.4" stroke-linecap="round"/>
+  </g>
+  <g id="scrB">
+    <circle r="11" fill="#CFAE4A" stroke="#9C8130" stroke-width="1.2"/>
+    <path d="M-6 0H6M0 -6V6" stroke="#8A7129" stroke-width="2.6" stroke-linecap="round"/>
+  </g>
+  <g id="pad">
+    <rect x="0" y="-7" width="18" height="14" rx="3" fill="#D8B45C" stroke="#A98A36" stroke-width="1"/>
+    <circle cx="9" cy="0" r="3.4" fill="#2A2E35"/>
+  </g>
+
+  <linearGradient id="pcb" x1=".2" y1="0" x2=".8" y2="1">
+    <stop offset="0" stop-color="#1C8455"/><stop offset=".55" stop-color="#127048"/><stop offset="1" stop-color="#0C5B3A"/>
+  </linearGradient>
+</defs>
+<rect width="1240" height="560" fill="#FFFFFF"/>
+
+<text x="60" y="42" font-size="21" font-weight="700" fill="#1A1C1F">То же самое на ESP32-S3 Super Mini</text>
+<text x="60" y="63" font-size="12.5" fill="#6B7076">та же головка, те же пять проводов — другие пины</text>
+
+<rect x="236" y="116" width="200" height="360" rx="9" fill="#1A1C1F" opacity=".10"/>
+<rect x="230" y="110" width="200" height="360" rx="9" fill="#21262E" stroke="#12151A" stroke-width="1.6"/>
+<rect x="238" y="118" width="184" height="344" rx="6" fill="none" stroke="#5E6874" stroke-width="1"/>
+<rect x="302" y="92" width="56" height="28" rx="6" fill="url(#steel)" stroke="#878E97" stroke-width="1.3"/>
+<rect x="311" y="99" width="38" height="12" rx="6" fill="#474D56"/>
+<text x="330" y="86" font-size="9" fill="#6B7076" text-anchor="middle">USB-C</text>
+<rect x="303" y="436" width="54" height="26" rx="3" fill="#EFE8D6" stroke="#C7BFA6" stroke-width="1.2"/>
+<path d="M311 442h38" stroke="#C7BFA6" stroke-width="1.4"/>
+<path d="M311 449h38" stroke="#C7BFA6" stroke-width="1.4"/>
+<path d="M311 456h38" stroke="#C7BFA6" stroke-width="1.4"/>
+<rect x="278" y="244" width="104" height="84" rx="4" fill="url(#steel)" stroke="#878E97" stroke-width="1.3"/>
+<text x="330" y="289" font-size="11" fill="#6E757E" text-anchor="middle" letter-spacing="1.2">ESP32</text>
+<use href="#pad" x="230" y="140.0"/>
+<use href="#pad" x="412" y="140.0"/>
+<text x="254" y="144.0" font-size="10.5" fill="#E6E9ED" font-family="JetBrains Mono, ui-monospace, Menlo, monospace">TX</text>
+<text x="406" y="144.0" font-size="10.5" fill="#E6E9ED" font-family="JetBrains Mono, ui-monospace, Menlo, monospace" text-anchor="end">8</text>
+<use href="#pad" x="230" y="179.0"/>
+<use href="#pad" x="412" y="179.0"/>
+<text x="254" y="183.0" font-size="10.5" fill="#E6E9ED" font-family="JetBrains Mono, ui-monospace, Menlo, monospace">RX</text>
+<text x="406" y="183.0" font-size="10.5" fill="#E6E9ED" font-family="JetBrains Mono, ui-monospace, Menlo, monospace" text-anchor="end">9</text>
+<use href="#pad" x="230" y="218.0"/>
+<use href="#pad" x="412" y="218.0"/>
+<text x="254" y="222.0" font-size="10.5" fill="#E6E9ED" font-family="JetBrains Mono, ui-monospace, Menlo, monospace">1</text>
+<text x="406" y="222.0" font-size="10.5" fill="#E6E9ED" font-family="JetBrains Mono, ui-monospace, Menlo, monospace" text-anchor="end">10</text>
+<use href="#pad" x="230" y="257.0"/>
+<use href="#pad" x="412" y="257.0"/>
+<text x="254" y="261.0" font-size="10.5" fill="#E6E9ED" font-family="JetBrains Mono, ui-monospace, Menlo, monospace">2</text>
+<text x="406" y="261.0" font-size="10.5" fill="#E6E9ED" font-family="JetBrains Mono, ui-monospace, Menlo, monospace" text-anchor="end">11</text>
+<use href="#pad" x="230" y="296.0"/>
+<use href="#pad" x="412" y="296.0"/>
+<text x="254" y="300.0" font-size="10.5" fill="#E6E9ED" font-family="JetBrains Mono, ui-monospace, Menlo, monospace">3</text>
+<text x="406" y="300.0" font-size="10.5" fill="#E6E9ED" font-family="JetBrains Mono, ui-monospace, Menlo, monospace" text-anchor="end">12</text>
+<use href="#pad" x="230" y="335.0"/>
+<use href="#pad" x="412" y="335.0"/>
+<text x="254" y="339.0" font-size="10.5" fill="#E6E9ED" font-family="JetBrains Mono, ui-monospace, Menlo, monospace">4</text>
+<text x="406" y="339.0" font-size="10.5" fill="#E6E9ED" font-family="JetBrains Mono, ui-monospace, Menlo, monospace" text-anchor="end">13</text>
+<use href="#pad" x="230" y="374.0"/>
+<use href="#pad" x="412" y="374.0"/>
+<text x="254" y="378.0" font-size="10.5" fill="#E6E9ED" font-family="JetBrains Mono, ui-monospace, Menlo, monospace">5</text>
+<text x="406" y="378.0" font-size="10.5" fill="#E6E9ED" font-family="JetBrains Mono, ui-monospace, Menlo, monospace" text-anchor="end">3V3</text>
+<use href="#pad" x="230" y="413.0"/>
+<use href="#pad" x="412" y="413.0"/>
+<text x="254" y="417.0" font-size="10.5" fill="#E6E9ED" font-family="JetBrains Mono, ui-monospace, Menlo, monospace">6</text>
+<text x="406" y="417.0" font-size="10.5" fill="#E6E9ED" font-family="JetBrains Mono, ui-monospace, Menlo, monospace" text-anchor="end">GND</text>
+<use href="#pad" x="230" y="452.0"/>
+<use href="#pad" x="412" y="452.0"/>
+<text x="254" y="456.0" font-size="10.5" fill="#E6E9ED" font-family="JetBrains Mono, ui-monospace, Menlo, monospace">7</text>
+<text x="406" y="456.0" font-size="10.5" fill="#E6E9ED" font-family="JetBrains Mono, ui-monospace, Menlo, monospace" text-anchor="end">5V</text>
+<text x="330" y="506" font-size="11.5" font-weight="700" fill="#00858A" text-anchor="middle" letter-spacing=".8">ESP32-S3 SUPER MINI</text>
+
+<path d="M430 296 H526" fill="none" stroke="#0000002E" stroke-width="10.0" stroke-linecap="round"/>
+<path d="M430 296 H526" fill="none" stroke="#F2C31F" stroke-width="7.0" stroke-linecap="round"/>
+<rect x="536" y="291.5" width="22" height="9" rx="4.5" fill="#F2C31F"/>
+<text x="568" y="300" font-size="12.5" font-weight="700" fill="#1A1C1F">пин 12</text>
+<text x="646" y="300" font-size="11.5" fill="#6B7076">левая площадка R6 на плате головки</text>
+<path d="M430 335 H526" fill="none" stroke="#0000002E" stroke-width="10.0" stroke-linecap="round"/>
+<path d="M430 335 H526" fill="none" stroke="#3FA34D" stroke-width="7.0" stroke-linecap="round"/>
+<rect x="536" y="330.5" width="22" height="9" rx="4.5" fill="#3FA34D"/>
+<text x="568" y="339" font-size="12.5" font-weight="700" fill="#1A1C1F">пин 13</text>
+<text x="646" y="339" font-size="11.5" fill="#6B7076">левая ножка V2 на плате головки</text>
+<path d="M430 374 H526" fill="none" stroke="#0000002E" stroke-width="10.0" stroke-linecap="round"/>
+<path d="M430 374 H526" fill="none" stroke="#F2921D" stroke-width="7.0" stroke-linecap="round"/>
+<rect x="536" y="369.5" width="22" height="9" rx="4.5" fill="#F2921D"/>
+<text x="568" y="378" font-size="12.5" font-weight="700" fill="#1A1C1F">пин 3V3</text>
+<text x="646" y="378" font-size="11.5" fill="#6B7076">большая площадка под R7</text>
+<path d="M430 413 H526" fill="none" stroke="#0000002E" stroke-width="10.0" stroke-linecap="round"/>
+<path d="M430 413 H526" fill="none" stroke="#2B2E33" stroke-width="7.0" stroke-linecap="round"/>
+<rect x="536" y="408.5" width="22" height="9" rx="4.5" fill="#2B2E33"/>
+<text x="568" y="417" font-size="12.5" font-weight="700" fill="#1A1C1F">пин GND</text>
+<text x="646" y="417" font-size="11.5" fill="#6B7076">чёрный провод кабеля</text>
+<path d="M430 452 H526" fill="none" stroke="#0000002E" stroke-width="10.0" stroke-linecap="round"/>
+<path d="M430 452 H526" fill="none" stroke="#E2372B" stroke-width="7.0" stroke-linecap="round"/>
+<rect x="536" y="447.5" width="22" height="9" rx="4.5" fill="#E2372B"/>
+<text x="568" y="456" font-size="12.5" font-weight="700" fill="#1A1C1F">пин 5V</text>
+<text x="646" y="456" font-size="11.5" fill="#6B7076">красный провод кабеля</text>
+<line x1="60" y1="510" x2="1180" y2="510" stroke="#DDE0E3" stroke-width="1.5"/>
+<text x="60" y="536" font-size="11" fill="#8A9099">Всё остальное — как на схеме выше: те же точки пайки на плате головки и те же два разреза.</text>
+</svg>

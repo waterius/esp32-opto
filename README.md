@@ -59,6 +59,10 @@ python3 tools/fake_cloud.py           # заглушка облака, порт 
 
 ## Подключение головки
 
+![Оптоголовка, счётчик и ESP32-C3 Super Mini](docs/img/opto-wiring-c3.svg)
+
+![То же самое на ESP32-S3 Super Mini](docs/img/opto-wiring-s3.svg)
+
 | Сигнал | ESP32-S3 | ESP32-C3 |
 |---|---|---|
 | RX (с головки) | GPIO13 | GPIO4 |
