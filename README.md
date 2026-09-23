@@ -4,6 +4,8 @@
 **ESP32-S3** и **ESP32-C3** с отправкой показаний в облако Waterius.
 Репозиторий и окружения сборки называются `esp32-opto`.
 
+![Оптоголовка, счётчик и ESP32-C3 Super Mini](docs/img/opto-wiring-c3.svg)
+
 - чтение по СПОДЭС (DLMS/COSEM поверх HDLC) библиотекой GuruxDLMS.c;
 - веб-морда: статус, настройки, Wi-Fi (портал перенесён из прошивки Waterius),
   лог в реальном времени;
@@ -59,9 +61,10 @@ python3 tools/fake_cloud.py           # заглушка облака, порт 
 
 ## Подключение головки
 
-![Оптоголовка, счётчик и ESP32-C3 Super Mini](docs/img/opto-wiring-c3.svg)
+Схема вверху — для ESP32-C3. На ESP32-S3 всё то же самое, отличаются
+только номера пинов:
 
-![То же самое на ESP32-S3 Super Mini](docs/img/opto-wiring-s3.svg)
+![Подключение к ESP32-S3 Super Mini](docs/img/opto-wiring-s3.svg)
 
 | Сигнал | ESP32-S3 | ESP32-C3 |
 |---|---|---|
