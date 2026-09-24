@@ -6,8 +6,9 @@
 #
 #   sh tools/build_release.sh      # → dist/*.bin
 #
-# Смещения берутся из таблицы разделов окружения: у S3 это default_8MB.csv
-# (плата esp32-s3-devkitc-1, 8 МБ), у C3 — min_spiffs.csv (4 МБ).
+# Смещения берутся из таблицы разделов окружения. Обе платы — 4 МБ и
+# min_spiffs.csv: у S3 Super Mini на борту 4 МБ, и образ под 8 в неё не
+# влезает (см. platformio.ini).
 set -eu
 
 PIO="$HOME/.platformio/penv/bin/pio"
@@ -23,7 +24,7 @@ mkdir -p dist
 "$PIO" run -e esp32-s3 -e esp32-c3 -t buildfs
 
 # env | чип | размер флеша | смещение раздела с LittleFS
-for row in "esp32-s3 esp32s3 8MB 0x670000" "esp32-c3 esp32c3 4MB 0x3D0000"; do
+for row in "esp32-s3 esp32s3 4MB 0x3D0000" "esp32-c3 esp32c3 4MB 0x3D0000"; do
     set -- $row
     env=$1 chip=$2 flash=$3 fs_off=$4
     b=".pio/build/$env"
