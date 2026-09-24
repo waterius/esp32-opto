@@ -1,0 +1,66 @@
+name: Ошибка
+description: Прошивка ведёт себя не так, как ожидалось
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Перед тем как писать: открытая точка доступа, отсутствие авторизации на
+        страницах и HTTPS без проверки сертификата — это осознанные решения, а
+        не ошибки. Разбор — в [docs/07-reliability.md](../blob/main/docs/07-reliability.md).
+
+  - type: textarea
+    id: what
+    attributes:
+      label: Что происходит
+      description: И что вы ожидали вместо этого.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Как воспроизвести
+      placeholder: |
+        1. …
+        2. …
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Версия прошивки
+      description: Видна на странице статуса и в поле «fw». Если собирали сами — коммит.
+      placeholder: "0.3.5"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: board
+    attributes:
+      label: Плата
+      options:
+        - ESP32-C3 Super Mini
+        - ESP32-S3 Super Mini
+        - ESP32-C3, другая
+        - ESP32-S3, другая
+        - другая
+    validations:
+      required: true
+
+  - type: input
+    id: meter
+    attributes:
+      label: Счётчик
+      description: Тип целиком, как написан на корпусе. Если проблема не в счётчике — прочерк.
+      placeholder: "НАРТИС-100.121RL"
+
+  - type: textarea
+    id: log
+    attributes:
+      label: Лог
+      description: |
+        Со страницы лога или с USB. Уровень debug показывает байты оптопорта.
+        **Уберите из лога ключ облака, почту и пароль счётчика.**
+      render: text

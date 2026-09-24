@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Вопрос или обсуждение
+    url: https://t.me/waterius_forum
+    about: Телеграм-чат пользователей Ватериуса — там быстрее ответят.
+  - name: Уязвимость
+    url: https://github.com/waterius/esp32-opto/security/advisories/new
+    about: Не публичным issue, а приватным сообщением. Сначала прочитайте SECURITY.md.
