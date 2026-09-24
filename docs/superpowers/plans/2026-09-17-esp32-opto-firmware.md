@@ -304,10 +304,10 @@ struct Settings {
 
 - [ ] **Шаг 6: Ядро — `src/core/cloud.h` и `src/core/cloud.cpp` (заменить целиком)**
 
-Поля запроса — по `IZSerializer` бэкенда; `meter_fw`, `meter_time`, `meter_read_at`, `ota_error` бэкенд пока игнорирует. Формат блока `ota` — как в waterius `ESP8266/src/ota_parse.h`.
+Поля запроса — по формату облака; `meter_fw`, `meter_time`, `meter_read_at`, `ota_error` бэкенд пока игнорирует. Формат блока `ota` — как в waterius `ESP8266/src/ota_parse.h`.
 
 ```cpp
-// Ядро: обмен с облаком Waterius — тело запроса POST /api/source/iz/ и разбор
+// Ядро: обмен с облаком Waterius — тело запроса POST в корень хоста и разбор
 // блока ota в ответе.
 #pragma once
 #include <stddef.h>
@@ -372,7 +372,7 @@ OtaParse parseOta(const char* body, OtaRequest& out);
 namespace core {
 namespace {
 
-// Коды типов данных Waterius (apps/source/api/api.py в waterius.site.back)
+// Коды типов данных Waterius
 const int DT_ELECTRICITY = 2;  // сумма
 const int DT_DAY = 5;          // T1
 const int DT_NIGHT = 6;        // T2
@@ -421,7 +421,7 @@ size_t buildCloudPayload(const MeterData& m, uint32_t readAt, const Settings& s,
 
     doc["fw"] = dev.fw;
     doc["model"] = m.model;
-    // meter_fw, meter_time и meter_read_at в IZSerializer не описаны: лишние
+    // meter_fw, meter_time и meter_read_at облако не описывает: лишние
     // поля бэкенд игнорирует, но данные счётчика лучше отправлять как есть.
     doc["meter_fw"] = m.fwVersion;
     doc["meter_time"] = m.time;
@@ -2961,7 +2961,7 @@ void sendCloud() {
     }
 
     String response;
-    int code = net::postJson(app.sett, "/api/source/iz/", body, response);
+    int code = net::postJson(app.sett, "/", body, response);
     app.cloudCode = code;
     Log.printf("Облако: HTTP %d %s\n", code, response.c_str());
     if (code != 200) {
@@ -3503,7 +3503,7 @@ function saveSettings(event, form) {
 
 На странице /settings в поле «Сервер» указать http://<IP компьютера>:8080.
 
-POST /api/source/iz/ печатает тело запроса. С --ota / --ota-fs первый ответ
+POST в корень печатает тело запроса (путь принимается любой). С --ota / --ota-fs первый ответ
 содержит блок "ota" (формат сервера Waterius), файлы раздаются по
 GET /firmware/<имя>. Бинарники после сборки лежат в
 .pio/build/<env>/firmware.bin и .pio/build/<env>/littlefs.bin.
@@ -4884,8 +4884,8 @@ docs/         исследование ИК-головки RIXUTECH на CP2102N
   `meter_time`, `meter_read_at` вместе с кодом ошибки OTA `ota_error` —
   бэкенд их пока игнорирует.
 - Успех — только HTTP 200. Из ответа прошивка разбирает только блок `ota`
-  (OTA через сервер, как в waterius); выдачу его для `/api/source/iz/`
-  владелец добавит в бэкенд отдельно.
+  (OTA через сервер, как в waterius); выдачу его владелец добавит в облако
+  отдельно.
 ```
 
 Правка 9 в `CLAUDE.md` — найти:

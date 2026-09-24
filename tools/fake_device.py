@@ -219,7 +219,7 @@ def do_send():
         if not SETTINGS['key']:
             DEV['cloud_error'] = 'ключ облака не задан'
             return
-        url = SETTINGS['host'].rstrip('/') + '/api/source/iz/'
+        url = SETTINGS['host'].rstrip('/') + '/'
         body = json.dumps(cloud_payload(), ensure_ascii=False).encode()
         headers = {'Content-Type': 'application/json',
                    'Waterius-Token': SETTINGS['key'], 'Waterius-Email': SETTINGS['email']}

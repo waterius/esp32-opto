@@ -48,7 +48,7 @@ size_t buildCloudPayload(const MeterData& m, uint32_t readAt, const Settings& s,
 
     doc["fw"] = dev.fw;
     doc["model"] = m.model;
-    // meter_fw, meter_time и meter_read_at в IZSerializer не описаны: лишние
+    // meter_fw, meter_time и meter_read_at облако не описывает: лишние
     // поля бэкенд игнорирует, но данные счётчика лучше отправлять как есть.
     doc["meter_fw"] = m.fwVersion;
     doc["meter_time"] = m.time;

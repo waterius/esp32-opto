@@ -1,4 +1,4 @@
-// Ядро: обмен с облаком Waterius — тело запроса POST /api/source/iz/ и разбор
+// Ядро: обмен с облаком Waterius — тело запроса POST в корень хоста и разбор
 // блока ota в ответе.
 #pragma once
 #include <stddef.h>

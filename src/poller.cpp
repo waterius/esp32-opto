@@ -163,7 +163,7 @@ void sendCloud() {
     }
 
     String response;
-    int code = net::postJson(app.sett, "/api/source/iz/", body, response);
+    int code = net::postJson(app.sett, "/", body, response);
     app.cloudCode = code;
     // Итог обмена одной строкой: целиком запрос и ответ уже написал
     // net::postJson на уровне debug, здесь — вывод, чтобы при поднятом пороге
